@@ -573,6 +573,9 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], theme?: string) => {
                         scopeStack.pop()
                         scopeStack.push('function.body')
                     }
+                    if (newTokens.length != 0) {
+                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                    }
                     continue
                 }
                 
@@ -598,7 +601,15 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], theme?: string) => {
                 }
 
                 if (scopeStack.top() === 'vardef') {
-                    if (matchesAny(['meta.function.definition.parameters'], scopes)){
+                    if (matchesAny(['entity.name.function'], scopes)) {
+                        // Create new token with additional scope
+                        const semanticParsedToken = createNewThemedToken(parsed, explained,
+                            { name: 'entity.name.function.definition', theme: _theme })
+                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                        scopeStack.pop()
+                        scopeStack.push('function.head')
+                        continue
+                    } else if (matchesAny(['meta.function.definition.parameters'], scopes)) {
                         scopeStack.pop()
                         scopeStack.push('function.head')
                     } else if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
