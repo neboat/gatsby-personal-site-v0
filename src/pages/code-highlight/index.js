@@ -19,7 +19,7 @@ const CilkHighlightPage = () => {
         }))
     }
     
-    const copyFormattedToClipboard = (event) => {
+    const copyFormattedToClipboard = () => {
         const str = document.getElementById('outputCode').innerHTML
         function listener(e) {
             e.clipboardData.setData("text/html", str)
