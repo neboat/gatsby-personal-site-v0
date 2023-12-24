@@ -49,7 +49,7 @@ const collectScopeNames = (token: shiki.IThemedToken) => {
 
 const checkTokenScopes = (
     tokens: shiki.IThemedToken[][],
-    expected: { content: string, scopeName: [ string ] }[]
+    expected: { content: string, scopeName: string[] }[]
 ) => {
     var eIdx = 0
     for (const line of tokens) {
