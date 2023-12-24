@@ -1,50 +1,4 @@
 import * as shiki from 'shiki'
-// import { Theme } from 'shiki-themes';
-// import { Lang, ILanguageRegistration } from 'shiki-languages';
-
-// Grammars for Cilk languages
-import cilkcGrammar from "../langs/cilkc.tmLanguage.json"
-import cilkcppGrammar from "../langs/cilkcpp.tmLanguage.json"
-
-// Setup highlighter with default languages and themes.
-const cilkbookTheme = shiki.toShikiTheme(require('../codethemes/cilkbook.json'))
-shiki.setCDN('https://unpkg.com/shiki/')
-const highlighter = await shiki.getHighlighter({
-    theme: 'slack-dark',
-    langs: [ 'c', 'cpp' ,
-    {
-        id: 'cilkcpp',
-        scopeName: "source.cilkcpp",
-        grammar: cilkcppGrammar,
-        // displayName: 'Cilk/C++',
-        aliases: ['cilk', 'cilkcpp']
-    },
-    {
-        id: 'cilkc',
-        scopeName: "source.cilkc",
-        grammar: cilkcGrammar,
-        // displayName: 'Cilk/C',
-        aliases: ['cilkc']
-    }]
-})
-await highlighter.loadTheme(cilkbookTheme)
-await highlighter.loadTheme('slack-ochin')
-// console.log(highlighter.getLoadedThemes())
-// const cilkcLanguage = {
-//     id: 'cilkc',
-//     scopeName: "source.cilkc",
-//     grammar: cilkcGrammar,
-//     displayName: 'Cilk/C',
-//     aliases: ['cilk-c']
-// }
-// const cilkcppLanguage = {
-//     id: 'cilkcpp',
-//     scopeName: "source.cilkcpp",
-//     grammar: cilkcppGrammar,
-//     displayName: 'Cilk/C++',
-//     aliases: ['cilk', 'cilk-cpp'] }
-// await highlighter.loadLanguage(cilkcLanguage)
-// await highlighter.loadLanguage(cilkcppLanguage)
 
 type ExplainedSubtoken = {
     token: shiki.IThemedToken,
@@ -69,7 +23,7 @@ function getExplainedSubtokens(parsedToken: shiki.IThemedToken) {
     return undefined
 }
 
-// Recognized semantic scopes
+// Semantic scopes
 type SemanticScope =
     | 'source'
     | 'vardef'
@@ -221,7 +175,7 @@ function createNewThemedToken(
     return newToken
 }
 
-// Simple stack structure for maintaining semantic scopes.
+// Stack structure for maintaining semantic scopes.
 class ScopeStack {
     stack: SemanticScope[] = ['source']
     depth: number = 0
@@ -256,12 +210,10 @@ function isKnownType(
 ): boolean {
     const type = content.trim().split(' ')[0]
     if (learnedTypes.includes(type)) {
-        console.log(`Found learned type ${type}`)
         return true
     }
     for (const parameterSet of templateParameters) {
         if (parameterSet.includes(type)) {
-            console.log(`Found template parameter ${type}`)
             return true
         }
     }
@@ -359,9 +311,7 @@ function maybePopTemplate(
     }
 }
 
-const SemanticHighlight = (tokens: shiki.IThemedToken[][], theme?: string) => {
-    const _theme = highlighter.getTheme(theme)
-    console.log(_theme)
+const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiTheme) => {
     var scopeStack: ScopeStack = new ScopeStack;
     var learnedTypes: string[] = []
     var templateParameters: string[][] = []
@@ -386,7 +336,7 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], theme?: string) => {
                 }
 
                 if (scopeStack.top() === 'structure') {
-                    if (matchesAny(['punctuation.section.block.end.bracket.curly', 'punctuation.section.block.end.bracket.curly'], scopes)) {
+                    if (matchesAny(['punctuation.section.block.end.bracket.curly'], scopes)) {
                         scopeStack.pop()
                         maybePopTemplate(scopeStack, templateParameters)
                         continue
@@ -788,12 +738,4 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], theme?: string) => {
     return semanticTokens
 }
 
-const CilkBookHighlight = (code: string, lang: string, theme?: 'cilkbook') => {
-    const tokens = highlighter.codeToThemedTokens(code, lang, theme)
-    console.log(tokens)
-    const semanticTokens = SemanticHighlight(tokens, theme)
-    console.log(semanticTokens)
-    return shiki.renderToHtml(semanticTokens)
-}
-
-export default CilkBookHighlight
+export default SemanticHighlight
