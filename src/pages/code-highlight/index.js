@@ -2,7 +2,6 @@ import * as React from "react"
 import Layout from "../../components/layout"
 import Seo from "../../components/seo"
 import CilkBookHighlight from "../../components/cilkbook-highlight"
-// import { codeToHtml } from "shiki"
 
 /** Paste richly formatted text.
  *
@@ -75,7 +74,6 @@ const CilkHighlightPage = () => {
         const div = document.getElementById("outputCode")
         async function getHighlighted(code, lang, style) {
             div.innerHTML = await CilkBookHighlight(code, lang, style)
-            // div.innerHTML = await codeToHtml(code, { lang: 'c++', theme: 'slack-ochin' })
         }
         getHighlighted(code, lang, style)
     })
