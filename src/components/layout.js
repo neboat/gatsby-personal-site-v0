@@ -32,7 +32,7 @@ const Layout = ({ children }) => {
           padding: `var(--size-gutter)`,
         }}
       >
-        <main className="flex flex-col h-screen items-center">{children}</main>
+        <main className="flex flex-col min-h-screen items-center">{children}</main>
         <footer
           style={{
             marginTop: `var(--space-5)`,

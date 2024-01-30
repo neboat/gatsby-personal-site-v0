@@ -3,7 +3,7 @@
   "type": "light",
   "colors": {
     "activityBarBadge.background": "#1D978D",
-    "editor.background": "#222222",
+    "editor.background": "#FFF",
     "editor.foreground": "#632618",
     "editor.inactiveSelectionBackground": "#3a3d41",
     "editor.selectionHighlightBackground": "#add6ff26",

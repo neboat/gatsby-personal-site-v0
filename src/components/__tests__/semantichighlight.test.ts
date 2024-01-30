@@ -1,62 +1,57 @@
-import * as shiki from 'shiki'
-import SemanticHighlight from '../semantichighlight'
+import { getHighlighter, ThemedToken } from 'shiki'
+import { SemanticHighlight } from '../semantichighlight'
+import { expect, test } from 'vitest'
 
 // Grammars for Cilk languages
 import cilkcGrammar from "../../langs/cilkc.tmLanguage.json"
 import cilkcppGrammar from "../../langs/cilkcpp.tmLanguage.json"
 
-// Setup highlighter with default languages and themes.
-const cilkbookTheme = shiki.toShikiTheme(require('../../codethemes/cilkbook.json'))
+// Create a shiki theme from the Cilkbook code theme.
+import cilkbookTheme from '../../codethemes/cilkbook.json'
+
+// Make a shiki highlighter with Cilk/C++ and Cilk/C languages and Cilkbook
+// theme.
 const makeHighlighter = async () => {
-    const highlighter = await shiki.getHighlighter({
-        theme: 'slack-dark',
-        langs: [ 'c', 'cpp' ,
-        {
-            id: 'cilkcpp',
-            scopeName: "source.cilkcpp",
-            grammar: cilkcppGrammar,
-            // displayName: 'Cilk/C++',
-            aliases: ['cilk', 'cilkcpp']
-        },
-        {
-            id: 'cilkc',
-            scopeName: "source.cilkc",
-            grammar: cilkcGrammar,
-            // displayName: 'Cilk/C',
-            aliases: ['cilkc']
-        }]
+    const highlighter = await getHighlighter({
+        themes: [ cilkbookTheme ],
+        langs: ['c', 'cpp',
+            { ...cilkcppGrammar },
+            { ...cilkcGrammar }]
     })
-    await highlighter.loadTheme(cilkbookTheme)
     return highlighter
 }
 
-const TestHighlight = async (code: string, lang: string, theme?: 'cilkbook') => {
+// Given code and a language, perform syntax and semantic highlighting, and
+// return the resulting themed tokens.
+const TestHighlight = async (code: string, lang: string, theme: string = 'cilkbook') => {
     const highlighter = await makeHighlighter()
-    const tokens = highlighter.codeToThemedTokens(code, lang, theme)
+    const tokens = highlighter.codeToThemedTokens(code, {
+        lang: lang,
+        theme: theme,
+        includeExplanation: true
+    })
     const _theme = highlighter.getTheme(theme)
     return SemanticHighlight(tokens, _theme)
 }
 
-const collectScopeNames = (token: shiki.IThemedToken) => {
-    var scopeNames: string[] = []
-    token.explanation?.map(function(ex) {
-        ex.scopes.map(function(scope) {
-            scopeNames.push(scope.scopeName)
-        })
-    })
-    return scopeNames
-}
-
+// Check the given themed tokens against expectation.  The expected parameter
+// contains an ordered list of tokens and associated scopes to look for in the
+// given themed tokens.
 const checkTokenScopes = (
-    tokens: shiki.IThemedToken[][],
+    tokens: ThemedToken[][],
     expected: { content: string, scopeName: string[] }[]
 ) => {
     var eIdx = 0
+    // Scan each token in each line.
     for (const line of tokens) {
         for (const tok of line) {
+            // If the token has an explanation, examine its explanations.
             if (tok.explanation) {
                 for (const ex of tok.explanation) {
+                    // If the explanation's content matches the next piece of expected content,
+                    // compare the scopes.
                     if (ex.content.trim() == expected[eIdx].content) {
+                        // Check that the scopes on this explanation contain the expected scopes.
                         const scopesArray = expected[eIdx].scopeName.map((scopeName) =>
                             [{
                                 scopeName: expect.stringMatching(scopeName),
@@ -66,10 +61,11 @@ const checkTokenScopes = (
                             content: ex.content,
                             scopes: expect.arrayContaining(scopesArray[0])
                         })
+                        // Advance to the next piece of expected content.
                         eIdx++
-                        if (eIdx == expected.length) {
+                        if (eIdx == expected.length)
+                            // Nothing more to check.  Exit.
                             return
-                        }
                     }
                 }
             }
@@ -77,6 +73,8 @@ const checkTokenScopes = (
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Unit tests.
 test.each([
     {
         code: 'int x;', lang: 'cilkc',

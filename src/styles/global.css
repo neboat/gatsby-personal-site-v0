@@ -16,3 +16,12 @@ code .line::before {
   text-align: right;
   color: rgba(115, 138, 148, 0.4);
 }
+
+/* Very simple CSS for tooltips in Tailwind.  Copied from: https://github.com/cosbgn/tailwindcss-tooltips */
+/* .tooltip {
+  @apply invisible absolute;
+}
+
+.has-tooltip:hover .tooltip {
+  @apply visible z-50
+} */

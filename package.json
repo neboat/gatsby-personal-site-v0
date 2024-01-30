@@ -1,9 +1,9 @@
 {
-  "name": "gatsby-starter-default",
+  "name": "neboat-personal-website",
   "private": true,
-  "description": "A simple starter to get up and developing quickly with Gatsby",
+  "description": "Tao B. Schardl's personal website",
   "version": "0.1.0",
-  "author": "Kyle Mathews <mathews.kyle@gmail.com>",
+  "author": "Tao B. Schardl <neboat@mit.edu>",
   "dependencies": {
     "gatsby": "^5.12.9",
     "gatsby-cli": "^5.12.4",
@@ -15,7 +15,8 @@
     "gatsby-transformer-sharp": "^5.12.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "shiki": "^0.14.7"
+    "shiki": "^1.0.0-beta.1",
+    "vitest": "^1.2.2"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.23.3",
@@ -41,13 +42,13 @@
     "start": "gatsby develop",
     "serve": "gatsby serve",
     "clean": "gatsby clean",
-    "test": "jest"
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gatsbyjs/gatsby-starter-default"
+    "url": "git@github.com:neboat/gatsby-personal-site-v0.git"
   },
   "bugs": {
-    "url": "https://github.com/gatsbyjs/gatsby/issues"
+    "url": "https://github.com/neboat/gatsby-personal-site-v0/issues"
   }
 }

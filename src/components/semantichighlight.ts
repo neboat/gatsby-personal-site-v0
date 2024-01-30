@@ -1,13 +1,21 @@
-import * as shiki from 'shiki'
+import { ThemedToken, ThemeRegistrationResolved } from 'shiki/bundle/web'
 
+/**
+ * Subcomponent of a ThemedToken with its own explanation.
+ */
 type ExplainedSubtoken = {
-    token: shiki.IThemedToken,
+    token: ThemedToken,
     content: string,
     scopes: string[],
     index: number
 }
 
-function getExplainedSubtokens(parsedToken: shiki.IThemedToken) {
+/**
+ * Extract the explained subtokens from the given token.
+ * @param parsedToken A given ThemedToken.
+ * @returns An array of explained subtokens, or `undefined` if no explanation is available.
+ */
+function getExplainedSubtokens(parsedToken: ThemedToken) {
     const explanation = parsedToken["explanation"]
     if (explanation) {
         var tokenScopes: ExplainedSubtoken[] = []
@@ -23,7 +31,9 @@ function getExplainedSubtokens(parsedToken: shiki.IThemedToken) {
     return undefined
 }
 
-// Semantic scopes
+/**
+ * Recognized semantic scopes
+ */
 type SemanticScope =
     | 'source'
     | 'vardef'
@@ -42,30 +52,14 @@ type SemanticScope =
     | 'struct.name'
     | 'arrayidx'
     | 'type'
-const SemanticScopes: SemanticScope[] = [
-    'source', // Top-level scope
-    'vardef',
-    'assignment.rhs',
-    'function.head',
-    'function.body',
-    'parens',
-    'block',
-    'namespace',
-    'template',
-    'typename',
-    'typedef',
-    'template.spec',
-    'cast',
-    'structure',
-    'struct.name',
-    'arrayidx',
-    'type'
-]
 
 ////////////////////////////////////////////////////////
 // Utility methods generating themed tokens
 
-// Check if the given selector matches the scope
+/**
+ *  Check if the given selector matches the scope.
+ */
+// Copied from shiki source.
 function matchesOne(selector: string, scope: string): boolean {
     let selectorPrefix = selector + '.'
     if (selector === scope || scope.substring(0, selectorPrefix.length) === selectorPrefix) {
@@ -74,7 +68,12 @@ function matchesOne(selector: string, scope: string): boolean {
     return false
 }
 
-// Check if any of the selectors match any of the scopes.
+/**
+ * Check if any of the selectors match any of the scopes.
+ * @param selectors Array of selectors to check for.
+ * @param scopes Array of scopes to check.
+ * @returns `true` if any of `selectors` match any of the `scopes`, `false` otherwise.
+ */
 function matchesAny(
     selectors: string[],
     scopes: string[]
@@ -91,51 +90,54 @@ function matchesAny(
     return false
 }
 
+// Copied from shiki source.
 function matches(
     selector: string,
     selectorParentScopes: string[],
     scope: string,
     parentScopes: string[]
 ): boolean {
-    if (!matchesOne(selector, scope)) {
+    if (!matchesOne(selector, scope))
         return false
-    }
 
     let selectorParentIndex = selectorParentScopes.length - 1
     let parentIndex = parentScopes.length - 1
     while (selectorParentIndex >= 0 && parentIndex >= 0) {
-        if (matchesOne(selectorParentScopes[selectorParentIndex], parentScopes[parentIndex])) {
-            selectorParentIndex--
-        }
-        parentIndex--
+        if (matchesOne(selectorParentScopes[selectorParentIndex], parentScopes[parentIndex]))
+            selectorParentIndex -= 1
+        parentIndex -= 1
     }
 
-    if (selectorParentIndex === -1) {
+    if (selectorParentIndex === -1)
         return true
-    }
+
     return false
 }
 
-function explainThemeScope(theme: shiki.IShikiTheme, scope: string, parentScopes: string[]): any[] {
-    let result: any[] = [], resultLen = 0
-    if (!theme)
-        return result
+// Copied from shiki source.
+function explainThemeScope(
+    theme: ThemeRegistrationResolved,
+    scope: string,
+    parentScopes: string[],
+): any[] {
+    const result: any[] = []
+    let resultLen = 0
     for (let i = 0, len = theme.settings.length; i < len; i++) {
-        let setting = theme.settings[i]
+        const setting = theme.settings[i]
         let selectors: string[]
-        if (typeof setting.scope === 'string') {
+        if (typeof setting.scope === 'string')
             selectors = setting.scope.split(/,/).map(scope => scope.trim())
-        } else if (Array.isArray(setting.scope)) {
+        else if (Array.isArray(setting.scope))
             selectors = setting.scope
-        } else {
+        else
             continue
-        }
-        for (let j = 0, lenJ = selectors.length; j < lenJ; j++) {
-            let rawSelector = selectors[j]
-            let rawSelectorPieces = rawSelector.split(/ /)
 
-            let selector = rawSelectorPieces[rawSelectorPieces.length - 1]
-            let selectorParentScopes = rawSelectorPieces.slice(0, rawSelectorPieces.length - 1)
+        for (let j = 0, lenJ = selectors.length; j < lenJ; j++) {
+            const rawSelector = selectors[j]
+            const rawSelectorPieces = rawSelector.split(/ /)
+
+            const selector = rawSelectorPieces[rawSelectorPieces.length - 1]
+            const selectorParentScopes = rawSelectorPieces.slice(0, rawSelectorPieces.length - 1)
 
             if (matches(selector, selectorParentScopes, scope, parentScopes)) {
                 // match!
@@ -148,14 +150,31 @@ function explainThemeScope(theme: shiki.IShikiTheme, scope: string, parentScopes
     return result
 }
 
-// Create a new themed token from a previous themed token.
+/**
+ * Create a new themed token from a previous themed token.
+ * @param token Original themed token.
+ * @param explained Subtoken of `token` with its own explanation.
+ * @param newScope Optional new scope to add to the new themed token.
+ * @returns A new themed token, based on the original, with the content of the explained subtoken and an additional new scope, if provided.
+ */
 function createNewThemedToken(
-    token: shiki.IThemedToken,
+    token: ThemedToken,
     explained: ExplainedSubtoken,
-    newScope?: { name: string, theme: shiki.IShikiTheme }
-): shiki.IThemedToken {
+    newScope?: { name: string, theme: ThemeRegistrationResolved }
+): ThemedToken {
+    // Compute the offset of the explained subtoken
+    const offset = token.explanation ?
+        token.explanation.slice(0, explained.index).reduce(
+            (acc, current) => acc + current.content.length,
+            token.offset) :
+        token.offset
     // Setup new token based on previous token
-    var newToken: shiki.IThemedToken = { content: explained.content, color: token.color, fontStyle: token.fontStyle }
+    var newToken: ThemedToken = {
+        content: explained.content,
+        offset: offset,
+        color: token.color,
+        fontStyle: token.fontStyle
+    }
     // Setup token explanation.
     if (token.explanation) {
         newToken.explanation = [token.explanation[explained["index"]]]
@@ -175,74 +194,107 @@ function createNewThemedToken(
     return newToken
 }
 
-// Stack structure for maintaining semantic scopes.
+/**
+ * Stack structure for maintaining semantic scopes.
+ */
 class ScopeStack {
     stack: SemanticScope[] = ['source']
     depth: number = 0
 
+    /**
+     * Push a new scope onto the stack.
+     * @param newScope New scope to push.
+     */
     push(newScope: SemanticScope) {
         this.stack.push(newScope)
         this.depth++
         console.log(this.stack)
     }
 
+    /**
+     * Pop the scope from the top of the stack.
+     */
     pop() {
         this.stack.pop()
         this.depth--
         console.log(this.stack)
     }
 
+    /**
+     * Read the top of the stack.
+     * @returns The semantic scope at the top of the stack.
+     */
     top(): SemanticScope {
         return this.stack[this.depth]
     }
 
-    ancestor(
-        index: number
-    ): SemanticScope {
+    /**
+     * Read an entry from the top of the stack.
+     * @param index The index of the stack entry to read.
+     * @returns The semantic scope `index` entries from the top of the stack.
+     */
+    ancestor(index: number): SemanticScope {
         return this.stack[this.depth - index]
     }
 }
 
+/**
+ * Check if the given content matches a non-builtin type.
+ * @param content Content string to check.
+ * @param learnedTypes Array of globally-defined non-builtin types.
+ * @param templateParameters 2D array of template parameters defined at the point of the content string.
+ * @returns `true` if `content` matches one of the types in `learnedTypes` or `templateParameters`, `false` otherwise.
+ */
 function isKnownType(
     content: string,
     learnedTypes: string[],
     templateParameters: string[][]
 ): boolean {
     const type = content.trim().split(' ')[0]
-    if (learnedTypes.includes(type)) {
+    if (learnedTypes.includes(type))
         return true
-    }
     for (const parameterSet of templateParameters) {
-        if (parameterSet.includes(type)) {
+        if (parameterSet.includes(type))
             return true
-        }
     }
     return false
 }
 
+/**
+ * If the given content string matches a known non-builtin type, return that type.
+ * @param content Content string to check.
+ * @param learnedTypes Array of globally-defined non-builtin types.
+ * @param templateParameters 2D array of template parameters defined at the point of the content string.
+ * @returns The type that matches `content`, if `content` matches one of the types in `learnedTypes` or `templateParameters`, or `''` otherwise.
+ */
 function getKnownType(
     content: string,
     learnedTypes: string[],
     templateParameters: string[][]
 ): string {
     const type = content.trim().split(' ')[0]
-    if (learnedTypes.includes(type)) {
+    if (learnedTypes.includes(type))
         return type
-    }
     for (const parameterSet of templateParameters) {
-        if (parameterSet.includes(type)) {
+        if (parameterSet.includes(type))
             return type
-        }
     }
     return ''
 }
 
+/**
+ * Split the given explained subtoken and update the array of explained subtokens containing it accordingly.
+ * @param explained Explained subtoken to split.
+ * @param splitIndex Index at which to split `explained`.
+ * @param subtokens Array of explained subtokens containing `explained`.
+ * @param explainedIdx Index of `explained` within `subtokens`.
+ */
 function splitTokenAtIndex(
     explained: ExplainedSubtoken,
     splitIndex: number,
     subtokens: ExplainedSubtoken[],
     explainedIdx: number
-) {
+): void {
     const content = explained.content
     const splitContent = content.substring(splitIndex)
     if (splitContent === '') {
@@ -255,6 +307,16 @@ function splitTokenAtIndex(
     subtokens.splice(explainedIdx + 1, 0, splitToken)
 }
 
+/**
+ * If the start of an explained subtoken is a known type, split that type from the explained subtoken.
+ * @param explained Explained subtoken.
+ * @param subtokens Array of explained subtokens containing `explained`.
+ * @param explainedIdx Index of `explained` in `subtokens`.
+ * @param learnedTypes Array of known types.
+ * @param templateParameters Template parameters defined at this point.
+ * @returns Depending on the first word in `explained`, either that word, if the word is not a known type;
+ * the empty string, if the word is a known type; or `undefined` on error.
+ */
 function splitTypeToken(
     explained: ExplainedSubtoken,
     subtokens: ExplainedSubtoken[],
@@ -279,21 +341,31 @@ function splitTypeToken(
     return ''
 }
 
-// Add a new token to the array of new tokens, pushing any preceding explained tokens
-// onto the stack that are not already present.
+/**
+ * Add a new token to the array of new tokens, pushing any preceding explained tokens
+ * onto the stack that are not already present.
+ * @param newTokens Array of new tokens to update.
+ * @param token Token to push onto `newTokens`.
+ * @param index Index of `token` in `explained`.
+ * @param explained Original array of explained subtokens.
+ */
 function pushNewToken(
-    newTokens: shiki.IThemedToken[],
-    token: shiki.IThemedToken,
+    newTokens: ThemedToken[],
+    token: ThemedToken,
     index: number,
     explained: ExplainedSubtoken[]
 ) {
     const originalToken = explained[index].token
-    for (const subtoken of explained.slice(newTokens.length, index)) {
+    for (const subtoken of explained.slice(newTokens.length, index))
         newTokens.push(createNewThemedToken(originalToken, subtoken))
-    }
     newTokens.push(token)
 }
 
+/**
+ * Add type to array of learned types.
+ * @param newType Type to add.
+ * @param learnedTypes Array of learned types.
+ */
 function learnType(
     newType: string,
     learnedTypes: string[]
@@ -301,6 +373,11 @@ function learnType(
     learnedTypes.push(newType.trim())
 }
 
+/**
+ * If the top of the scope stack is `template`, pop it and update the set of template parameters accordingly.
+ * @param scopeStack Stack of semantic scopes.
+ * @param templateParameters Stack of template parameters.
+ */
 function maybePopTemplate(
     scopeStack: ScopeStack,
     templateParameters: string[][]
@@ -311,29 +388,28 @@ function maybePopTemplate(
     }
 }
 
-const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiTheme) => {
+export function SemanticHighlight (tokens: ThemedToken[][], _theme: ThemeRegistrationResolved) {
     var scopeStack: ScopeStack = new ScopeStack;
     var learnedTypes: string[] = []
     var templateParameters: string[][] = []
     var newTemplateParameters: string[] = []
     var newType: string = ''
-    var semanticTokens: shiki.IThemedToken[][] = []
+    var semanticTokens: ThemedToken[][] = []
     for (const token of tokens) {
-        var semanticParsedTokens: shiki.IThemedToken[] = []
+        var semanticParsedTokens: ThemedToken[] = []
         for (const parsed of token) {
             const subtokens = getExplainedSubtokens(parsed)
             if (!subtokens) {
                 semanticParsedTokens.push(parsed)
                 continue
             }
-            var newTokens: shiki.IThemedToken[] = []
+            var newTokens: ThemedToken[] = []
             for (var explainedIdx = 0; explainedIdx < subtokens.length; explainedIdx++) {
                 const explained = subtokens[explainedIdx]
                 const scopes = explained["scopes"]
 
-                if (matchesAny(['comment'], scopes)) {
+                if (matchesAny(['comment'], scopes))
                     continue
-                }
 
                 if (scopeStack.top() === 'structure') {
                     if (matchesAny(['punctuation.section.block.end.bracket.curly'], scopes)) {
@@ -350,9 +426,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                 if (scopeStack.top() === 'block') {
                     if (matchesAny(['punctuation.section.block.end'], scopes)) {
                         scopeStack.pop()
-                        if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes)) {
+                        if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes))
                             scopeStack.pop()
-                        }
                         continue
                     }
                 }
@@ -369,7 +444,7 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                     } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
                         splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
                         const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme})
+                            { name: 'entity.name.type.defined', theme: _theme })
                         pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
                         // scopeStack.push('vardef')
                         continue
@@ -410,9 +485,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
                         continue
                     }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
                     continue
                 }
 
@@ -470,9 +544,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         const semanticParsedToken = createNewThemedToken(parsed, explained,
                             { name: 'entity.name.type.defined', theme: _theme })
                         pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        if (unsplitType) {
+                        if (unsplitType)
                             newType = unsplitType
-                        }
                         continue
                     } else if (matchesAny(['punctuation.terminator.statement'], scopes)) {
                         if (newType != '') {
@@ -499,9 +572,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
                         continue
                     }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
                     continue
                 }
 
@@ -523,9 +595,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         scopeStack.pop()
                         scopeStack.push('function.body')
                     }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
                     continue
                 }
                 
@@ -621,9 +692,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
                         continue
                     }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
                     continue
                 }
 
@@ -643,9 +713,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         scopeStack.push('template.spec')
                         continue
                     }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
                 }
                 
                 if (scopeStack.top() === 'assignment.rhs') {
@@ -672,10 +741,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                         scopeStack.push('template.spec')
                         continue
                     }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
-                    // continue
                 }
                 
                 if (scopeStack.top() === 'cast') {
@@ -696,21 +763,18 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
                 }
 
                 if (scopeStack.top() === 'arrayidx') {
-                    if (matchesAny(['punctuation.definition.end.bracket.square'], scopes)) {
+                    if (matchesAny(['punctuation.definition.end.bracket.square'], scopes))
                         scopeStack.pop()
-                    }
-                    if (newTokens.length != 0) {
+                    if (newTokens.length != 0)
                         pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
                 }
 
                 if (matchesAny(['punctuation.section.block.begin'], scopes)) {
                     scopeStack.push('block')
                 } else if (matchesAny(['punctuation.section.block.end'], scopes)) {
                     scopeStack.pop()
-                    if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes)) {
+                    if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes))
                         scopeStack.pop()
-                    }
                 } else if (matchesAny(['punctuation.section.angle-brackets.begin.template'], scopes)) {
                     scopeStack.push('template')
                 } else if (matchesAny(['punctuation.section.angle-brackets.end.template'], scopes)) {
@@ -724,9 +788,8 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
             if (newTokens.length === 0) {
                 semanticParsedTokens.push(parsed)
             } else {
-                for (const newToken of newTokens) {
+                for (const newToken of newTokens)
                     semanticParsedTokens.push(newToken)
-                }
             }
         }
         semanticTokens.push(semanticParsedTokens)
@@ -737,5 +800,3 @@ const SemanticHighlight = (tokens: shiki.IThemedToken[][], _theme: shiki.IShikiT
     }
     return semanticTokens
 }
-
-export default SemanticHighlight

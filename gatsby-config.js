@@ -49,23 +49,23 @@ module.exports = {
     `gatsby-plugin-postcss`,
     {
       resolve: `gatsby-transformer-remark`,
-      options: {
-        plugins: [
-          {
-            resolve: `gatsby-remark-shiki`,
-            options: {
-              theme: 'slack-ochin', // Default
-              langs: [
-                {
-                  id: `cilk`,
-                  scopeName: `source.cilkcpp`,
-                  path: `${__dirname}/langs/cilkcpp.tmLanguage.json`,
-                }
-              ]
-            },
-          },
-        ],
-      },
+      // options: {
+      //   plugins: [
+      //     {
+      //       resolve: `gatsby-remark-shiki`,
+      //       options: {
+      //         theme: 'slack-ochin', // Default
+      //         langs: [
+      //           {
+      //             id: `cilk`,
+      //             scopeName: `source.cilkcpp`,
+      //             path: `${__dirname}/langs/cilkcpp.tmLanguage.json`,
+      //           }
+      //         ]
+      //       },
+      //     },
+      //   ],
+      // },
     },
   ],
 }
