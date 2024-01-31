@@ -80,8 +80,8 @@ const CilkHighlightPage = () => {
 
     return (
         <Layout>
-            <div className="w-full">
-                <form className="grid grid-flow-row lg:grid-cols-2 lg:gap-x-4">
+            <div className="w-full lg:w-screen">
+                <form className="grid grid-flow-row lg:grid-cols-2 lg:gap-x-4 lg:mx-8">
                     <div className="flex">
                         <label htmlFor="inputCode" className="block py-1 text-md text-gray-900">Enter code to highlight:</label>
                     </div>
@@ -114,7 +114,7 @@ const CilkHighlightPage = () => {
                             {/* </div> */}
                         </div>
                     </div>
-                    <div id="outputCode" className="flex lg:order-2 border border-gray-300 rounded max-w-full overflow-x-scroll"></div>
+                    <div id="outputCode" className="flex lg:order-2 border border-gray-300 rounded max-w-full"></div>
                 </form>
             </div>
         </Layout>
