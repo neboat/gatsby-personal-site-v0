@@ -505,6 +505,17 @@
       }
     },
     {
+      "name": "Variable declaration",
+      "scope": [
+        "variable.other.object.declare",
+        "variable.other.definition",
+        "meta.definition.variable.name"
+      ],
+      "settings": {
+        "foreground": "#DE9C21"
+      }
+    },
+    {
       "name": "Object keys, TS grammar specific",
       "scope": ["meta.object-literal.key"],
       "settings": {

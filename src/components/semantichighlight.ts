@@ -867,7 +867,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                         ctx.pushScope('arrayidx')
                     } else if (matchesAny(['variable.other.object', 'variable.object', 'variable.other.assignment'], scopes.slice(-1))) {
                         // Mark this variable as a definition.
-                        cursor.pushCurrentSubtoken({ name: 'meta.definition.variable.name' })
+                        cursor.pushCurrentSubtoken({ name: 'variable.other.object.declare' })
                         ctx.pushScope('rhs')
                         continue
                     } else if (matchesAny(['meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.body.union', 'meta.tail.union', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
@@ -891,7 +891,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                             continue
                         }
                         // Mark this variable name as a definition.
-                        cursor.pushCurrentSubtoken({ name: 'meta.definition.variable.name' })
+                        cursor.pushCurrentSubtoken({ name: 'variable.other.object.declare' })
                         ctx.pushScope('rhs')
                         continue
                     } else if (subtoken.content === '*') {
