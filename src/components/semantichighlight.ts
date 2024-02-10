@@ -165,7 +165,6 @@ class ScopeStack {
     push(newScope: SemanticScope) {
         this.stack.push(newScope)
         this.depth++
-        // console.log(this.stack)
     }
 
     /**
@@ -174,7 +173,6 @@ class ScopeStack {
     pop() {
         this.stack.pop()
         this.depth--
-        // console.log(this.stack)
     }
 
     /**
@@ -928,7 +926,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                     if (matchesAny(['punctuation.section.parens.end.bracket.round', 'punctuation.section.arguments.end.bracket.round.function.call', 'punctuation.definition.parameters.end', 'punctuation.section.parameters.end'], scopes)) {
                         // End of the parens scope.
                         ctx.popScope()
-                    } else if (ctx.isKnownType(subtoken.content)) {
+                    } else if (!matchesAny(['entity.name.scope-resolution'], scopes) && ctx.isKnownType(subtoken.content)) {
                         // Mark this subtoken as a type.
                         ctx.splitTypeToken(subtoken, cursor)
                         cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })

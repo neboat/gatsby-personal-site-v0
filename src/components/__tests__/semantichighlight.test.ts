@@ -856,6 +856,90 @@ test.each([
             { content: '}', scopeName: ['^punctuation\.section\.block\.end\.bracket\.curly\.class'] },
             { content: ';', scopeName: ['^punctuation\.terminator\.statement'] },
         ]
+    },
+    {
+        langs: ['cilkcpp'],
+        code:
+            `template<typename Char, typename Traits>
+            class ostream_view : public std::basic_ostream<Char, Traits>
+            {
+            public:
+                void reduce(ostream_view* other)
+                {
+                    if (other->m_buffer.sgetc() != Traits::eof()) {
+                        *this << (&other->m_buffer);
+                    }
+                }
+            };`,
+        expected: [
+            { content: 'template', scopeName: ['^storage\.type\.template'] },
+            { content: '<', scopeName: ['^punctuation\.section\.angle-brackets\.begin\.template\.definition'] },
+            { content: 'typename', scopeName: ['^storage\.type\.template\.argument\.typename'] },
+            { content: 'Char', scopeName: ['^entity\.name\.type\.template'] },
+            { content: ',', scopeName: ['^punctuation\.separator\.delimiter\.comma'] },
+            { content: 'typename', scopeName: ['^storage\.type\.template\.argument\.typename'] },
+            { content: 'Traits', scopeName: ['^entity\.name\.type\.template'] },
+            { content: '>', scopeName: ['^punctuation\.section\.angle-brackets\.end\.template\.definition'] },
+            { content: 'class', scopeName: ['^storage\.type\.class'] },
+            { content: 'ostream_view', scopeName: ['^entity\.name\.type'] },
+            { content: ':', scopeName: ['^punctuation\.separator\.colon\.inheritance'] },
+            { content: 'public', scopeName: ['^storage\.type\.modifier\.access\.public'] },
+            { content: 'std', scopeName: ['^entity\.name\.scope-resolution'] },
+            { content: '::', scopeName: ['^punctuation\.separator\.scope-resolution'] },
+            { content: 'basic_ostream', scopeName: ['^entity\.name\.type'] },
+            { content: '<', scopeName: ['^punctuation\.section\.angle-brackets\.begin\.template\.call'] },
+            { content: 'Char', scopeName: ['^entity\.name\.type'] },
+            { content: ',', scopeName: ['^punctuation\.separator\.delimiter\.comma'] },
+            { content: 'Traits', scopeName: ['^entity\.name\.type'] },
+            { content: '>', scopeName: ['^punctuation\.section\.angle-brackets\.end\.template\.call'] },
+            { content: '{', scopeName: ['^punctuation\.section\.block\.begin\.bracket\.curly'] },
+            { content: 'public', scopeName: ['^storage\.type\.modifier\.access\.control\.public'] },
+            { content: ':', scopeName: ['^punctuation\.separator\.colon\.access\.control'] },
+
+            { content: 'void', scopeName: ['^storage\.type\.built-in\.primitive'] },
+            { content: 'reduce', scopeName: ['^entity\.name\.function\.definition'] },
+            { content: '(', scopeName: ['^punctuation\.section\.parameters\.begin\.bracket\.round'] },
+            { content: 'ostream_view', scopeName: ['^entity\.name\.type\.parameter'] },
+            { content: '*', scopeName: ['^storage\.modifier\.pointer'] },
+            { content: 'other', scopeName: ['^variable\.parameter'] },
+            { content: ')', scopeName: ['^punctuation\.section\.parameters\.end\.bracket\.round'] },
+            { content: '{', scopeName: ['^punctuation\.section\.block\.begin\.bracket\.curly\.function\.definition'] },
+
+            { content: 'if', scopeName: ['^keyword\.control\.if'] },
+            { content: '(', scopeName: ['^punctuation\.section\.parens\.begin\.bracket\.round'] },
+            { content: 'other', scopeName: ['^variable\.other\.object\.access'], notScopeName: ['^variable\.other\.object\.declare'] },
+            { content: '->', scopeName: ['^punctuation\.separator\.pointer-access'] },
+            { content: 'm_buffer', scopeName: ['^variable\.other\.object\.property'], notScopeName: ['^variable\.other\.object\.declare'] },
+            { content: '.', scopeName: ['^punctuation\.separator\.dot-access'] },
+            { content: 'sgetc', scopeName: ['^entity\.name\.function\.member'], notScopeName: ['^variable\.other\.object\.declare', 'definition'] },
+            { content: '(', scopeName: ['^punctuation\.section\.arguments\.begin\.bracket\.round\.function\.member'] },
+            { content: ')', scopeName: ['^punctuation\.section\.arguments\.end\.bracket\.round\.function\.member'] },
+            { content: '!=', scopeName: ['^keyword\.operator\.comparison'] },
+            { content: 'Traits', scopeName: ['^entity\.name\.scope-resolution'] },
+            { content: '::', scopeName: ['^punctuation\.separator\.scope-resolution'] },
+            { content: 'eof', scopeName: ['^entity\.name\.function\.call'] },
+            { content: '(', scopeName: ['^punctuation\.section\.arguments\.begin\.bracket\.round\.function\.call'] },
+            { content: ')', scopeName: ['^punctuation\.section\.arguments\.end\.bracket\.round\.function\.call'] },
+            { content: ')', scopeName: ['^punctuation\.section\.parens\.end\.bracket\.round'] },
+
+            { content: '{', scopeName: ['^punctuation\.section\.block\.begin\.bracket\.curly'] },
+            { content: '*', scopeName: ['^keyword\.operator\.arithmetic'] }, // TODO: Recognize this as a pointer dereference?
+            { content: 'this', scopeName: ['^variable\.language\.this'] },
+            { content: '<<', scopeName: ['^keyword\.operator\.bitwise\.shift'] }, // TODO: Recognize this as the output-stream operator?
+            { content: '(', scopeName: ['^punctuation\.section\.parens\.begin\.bracket\.round'] },
+            { content: '&', scopeName: ['^keyword\.operator\.bitwise'] }, // TODO: Recognize this as address-of operator?
+            { content: 'other', scopeName: ['^variable\.other\.object\.access'], notScopeName: ['^variable\.other\.object\.declare'] },
+            { content: '->', scopeName: ['^punctuation\.separator\.pointer-access'] },
+            { content: 'm_buffer', scopeName: ['^variable\.other\.property'], notScopeName: ['^variable\.other\.object\.declare'] },
+            { content: ')', scopeName: ['^punctuation\.section\.parens\.end\.bracket\.round'] },
+            { content: ';', scopeName: ['^punctuation\.terminator\.statement'] },
+            { content: '}', scopeName: ['^punctuation\.section\.block\.end\.bracket\.curly'] },
+
+            { content: '}', scopeName: ['^punctuation\.section\.block\.end\.bracket\.curly\.function\.definition'] },
+
+            { content: '}', scopeName: ['^punctuation\.section\.block\.end\.bracket\.curly\.class'] },
+            { content: ';', scopeName: ['^punctuation\.terminator\.statement'] },
+        ]
     }
 ])('SemanticHighlight($langs, $code)', async ({ code, langs, expected }) => {
     for (const lang of langs) {
