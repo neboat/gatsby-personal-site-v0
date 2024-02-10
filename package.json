@@ -6,6 +6,7 @@
   "author": "Tao B. Schardl <neboat@mit.edu>",
   "dependencies": {
     "gatsby": "^5.12.9",
+    "gatsby-adapter-netlify": "^1.1.3",
     "gatsby-cli": "^5.12.4",
     "gatsby-plugin-image": "^3.12.3",
     "gatsby-plugin-manifest": "^5.12.3",
