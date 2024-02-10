@@ -247,7 +247,7 @@
       }
     },
     {
-      "scope": ["storage.type.built-in", "entity.name.type.defined", "entity.name.type.parameter"],
+      "scope": ["storage.type.built-in", "storage.type.return-type.lambda", "entity.name.type.defined", "entity.name.type.parameter"],
       "settings": {
         "foreground": "#689300"
       }
@@ -499,7 +499,7 @@
     },
     {
       "name": "Variable and parameter use",
-      "scope": ["variable.other", "variable.object"],
+      "scope": ["variable.other", "variable.object", "variable.parameter.initializer"],
       "settings": {
         "foreground": "#632618"
       }

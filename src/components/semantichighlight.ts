@@ -21,9 +21,9 @@ function getExplainedSubtokens(parsedToken: ThemedToken) {
         var tokenScopes: ExplainedSubtoken[] = []
         var index = 0
         for (const explained of explanation) {
-            const content = explained["content"]
-            const scopes = explained["scopes"].map(scope => scope.scopeName)
-            tokenScopes.push({token: parsedToken, content, scopes, index})
+            const content = explained.content
+            const scopes = explained.scopes.map(scope => scope.scopeName)
+            tokenScopes.push({ token: parsedToken, content, scopes, index })
             index++
         }
         return tokenScopes
@@ -37,7 +37,8 @@ function getExplainedSubtokens(parsedToken: ThemedToken) {
 type SemanticScope =
     | 'source'
     | 'vardef'
-    | 'assignment.rhs'
+    | 'rhs'
+    | 'assignment'
     | 'function.head'
     | 'function.body'
     | 'parens'
@@ -151,50 +152,6 @@ function explainThemeScope(
 }
 
 /**
- * Create a new themed token from a previous themed token.
- * @param token Original themed token.
- * @param explained Subtoken of `token` with its own explanation.
- * @param newScope Optional new scope to add to the new themed token.
- * @returns A new themed token, based on the original, with the content of the explained subtoken and an additional new scope, if provided.
- */
-function createNewThemedToken(
-    token: ThemedToken,
-    explained: ExplainedSubtoken,
-    newScope?: { name: string, theme: ThemeRegistrationResolved }
-): ThemedToken {
-    // Compute the offset of the explained subtoken
-    const offset = token.explanation ?
-        token.explanation.slice(0, explained.index).reduce(
-            (acc, current) => acc + current.content.length,
-            token.offset) :
-        token.offset
-    // Setup new token based on previous token
-    var newToken: ThemedToken = {
-        content: explained.content,
-        offset: offset,
-        color: token.color,
-        fontStyle: token.fontStyle
-    }
-    // Setup token explanation.
-    if (token.explanation) {
-        newToken.explanation = [token.explanation[explained["index"]]]
-        // If there's a new explanation, push it to the list of explanations.
-        if (newScope) {
-            const themeMatches = explainThemeScope(newScope["theme"], newScope["name"], explained["scopes"])
-            newToken.explanation[0]["scopes"].push({ scopeName: `${newScope["name"]}.sema`, themeMatches })
-            // If we found a new theme match, update the token's formatting based on it.
-            if (themeMatches.length > 0) {
-                newToken.color = themeMatches[themeMatches.length - 1].settings["foreground"]
-                newToken.fontStyle = themeMatches[themeMatches.length - 1].settings["fontStyle"]
-                if (!newToken.fontStyle)
-                    newToken.fontStyle = 0
-            }
-        }
-    }
-    return newToken
-}
-
-/**
  * Stack structure for maintaining semantic scopes.
  */
 class ScopeStack {
@@ -208,7 +165,7 @@ class ScopeStack {
     push(newScope: SemanticScope) {
         this.stack.push(newScope)
         this.depth++
-        console.log(this.stack)
+        // console.log(this.stack)
     }
 
     /**
@@ -217,15 +174,323 @@ class ScopeStack {
     pop() {
         this.stack.pop()
         this.depth--
-        console.log(this.stack)
+        // console.log(this.stack)
     }
 
     /**
      * Read the top of the stack.
      * @returns The semantic scope at the top of the stack.
      */
-    top(): SemanticScope {
-        return this.stack[this.depth]
+    top(): SemanticScope { return this.stack[this.depth] }
+
+    /**
+     * Read an entry from the top of the stack.
+     * @param index The index of the stack entry to read.
+     * @returns The semantic scope `index` entries from the top of the stack.
+     */
+    ancestor(index: number): SemanticScope { return this.stack[this.depth - index] }
+}
+
+/**
+ * Cursor structure for managing the processing of a `ThemedToken`.
+ */
+class ParsedTokenCursor {
+    /**
+     * Parsed `ThemedToken` being processed.
+     */
+    parsed: ThemedToken
+    /**
+     * Array of explained subtokens of `parsed`.
+     */
+    subtokens: ExplainedSubtoken[]
+
+    /**
+     * New array of `ThemedToken`s being constructed from processing `parsed`.
+     */
+    newTokens: ThemedToken[] = []
+
+    /**
+     * Character offset into content of `parsed` that corresponds with content pushed onto `newTokens`.
+     */
+    offsetIntoParsed: number = 0
+    /**
+     * Index in `explained` of explained subtoken being processed.
+     */
+    subtokenIndex: number = 0
+
+    /**
+     * Theme used to create new `ThemedToken`s.
+     */
+    theme: ThemeRegistrationResolved
+
+    constructor(parsed: ThemedToken, subtokens: ExplainedSubtoken[], theme: ThemeRegistrationResolved) {
+        this.parsed = parsed
+        this.subtokens = subtokens
+        this.theme = theme
+    }
+
+    /**
+     * @returns The subtoken currently being processed.
+     */
+    current(): ExplainedSubtoken { return this.subtokens[this.subtokenIndex] }
+
+    /**
+     * @returns `true` if there are subtokens remaining to process, `false` otherwise.
+     */
+    subtokensRemaining(): boolean { return this.subtokenIndex < this.subtokens.length }
+
+    /**
+     * Move this cursor forward to the next subtoken.
+     */
+    advance() { this.subtokenIndex++ }
+
+    /**
+     * Prevent the cursor from advancing once.
+     */
+    skipAdvance() { this.subtokenIndex-- }
+
+    /**
+     * Create a `ThemedToken` from an `ExplainedSubtoken` in `this.subtokens`.
+     * @param subtoken `ExplainedSubtoken` to create a `ThemedToken` from.
+     * @returns A `ThemedToken` based on `this.parsed` with content of `subtoken`.
+     */
+    createThemedTokenFromSubtoken(subtoken: ExplainedSubtoken): ThemedToken {
+        const token = this.parsed
+        const newToken = {
+            content: subtoken.content,
+            offset: token.offset,
+            color: token.color,
+            fontStyle: token.fontStyle,
+            bgColor: token.bgColor,
+            htmlStyle: token.htmlStyle,
+            explanation: token.explanation ? [token.explanation[subtoken.index]] : undefined
+        }
+        return newToken
+    }
+
+    /**
+     * Create a new themed token from the current subtoken.
+     * @param newScope Optional new scope to add to the new themed token.
+     * @returns A new themed token, based on the original, with the content of the current subtoken and an additional new scope, if provided.
+     */
+    createNewThemedToken(newScope?: { name: string }): ThemedToken {
+        const token = this.parsed
+        const explained = this.current()
+        // Setup new token based on previous token.
+        var newToken: ThemedToken = this.createThemedTokenFromSubtoken(explained)
+        // Setup token explanation.
+        if (newToken.explanation)
+            // If there's a new explanation, push it to the list of explanations.
+            if (newScope) {
+                const themeMatches = explainThemeScope(this.theme, newScope.name, explained.scopes)
+                newToken.explanation[0].scopes.push({ scopeName: `${newScope.name}.sema`, themeMatches })
+                // If we found a new theme match, update the token's formatting based on it.
+                if (themeMatches.length > 0) {
+                    newToken.color = themeMatches[themeMatches.length - 1].settings.foreground
+                    newToken.fontStyle = themeMatches[themeMatches.length - 1].settings.fontStyle
+                    if (!newToken.fontStyle)
+                        newToken.fontStyle = 0
+                }
+            }
+        return newToken
+    }
+
+    /**
+     * Splits the given token at the specified character index.
+     * @param token Token to split.  Expected to match `this.subtokens[this.subtokenIndex]`.
+     * @param splitIndex Character index in `token.content` where split is to be made.
+     */
+    splitTokenAtIndex(
+        token: ExplainedSubtoken,
+        splitIndex: number
+    ): void {
+        const content = token.content
+        const splitContent = content.substring(splitIndex)
+        if (splitContent === '')
+            return
+        const splitToken: ExplainedSubtoken = { ...token }
+        splitToken.content = splitContent
+        token.content = content.substring(0, splitIndex)
+        this.subtokens.splice(this.subtokenIndex + 1, 0, splitToken)
+    }
+
+    /**
+     * Helper method to push a given token onto `newTokens` and update cursor accordingly.
+     * @param token Token to push.
+     */
+    private _pushSubtoken(token: ThemedToken) {
+        // Fix the contents of the new token, in case it excludes whitespace in the original parsed token.
+        const explainedOffset = this.parsed.content.substring(this.offsetIntoParsed).indexOf(token.content)
+        if (explainedOffset != 0)
+            token.content = this.parsed.content.substring(this.offsetIntoParsed,
+                this.offsetIntoParsed + explainedOffset + token.content.length)
+
+        // Push the token
+        token.offset = this.parsed.offset + this.offsetIntoParsed
+        this.newTokens.push(token)
+
+        // Update offsetIntoParsed
+        this.offsetIntoParsed += token.content.length
+    }
+
+    /**
+     * Push the given token onto the list of new tokens.
+     * @param token Token to push.
+     */
+    pushNewToken(token: ThemedToken) {
+        // Push subtokens before the current subtoken index.
+        for (const subtoken of this.subtokens.slice(this.newTokens.length, this.subtokenIndex)) {
+            this._pushSubtoken(this.createThemedTokenFromSubtoken(subtoken))
+        }
+        // Push the given token.
+        this._pushSubtoken(token)
+    }
+
+    /**
+     * Push the current subtoken onto the list of new tokens.
+     * @param newScope Optional new scope to add to the new themed token.
+     */
+    pushCurrentSubtoken(newScope?: { name: string }) {
+        this.pushNewToken(this.createNewThemedToken(newScope))
+    }
+
+    /**
+     * Flush the current subtoken onto the list of new tokens.
+     */
+    flushCurrentSubtoken() {
+        if (this.newTokens.length != 0) {
+            this.pushCurrentSubtoken()
+        }
+    }
+}
+
+/**
+ * Structure to maintain semantic program information about each point in a source program.
+ */
+class SemanticContext {
+    /**
+     * Stack of semantic scopes
+     */
+    scopeStack: ScopeStack = new ScopeStack
+    /**
+     * Non-builtin types defined in the program.
+     */
+    learnedTypes: string[] = []
+    /**
+     * Template parameters currently defined.
+     */
+    templateParameters: string[][] = []
+
+    /**
+     * Helper array to record parameters defined while processing a template.
+     */
+    newTemplateParameters: string[] = []
+
+    /**
+     * Check if the given content matches a non-builtin type.
+     * @param content Content string to check.
+     * @returns `true` if `content` matches one of the types in `learnedTypes` or `templateParameters`, `false` otherwise.
+     */
+    isKnownType(content: string): boolean {
+        const type = content.trim().split(' ')[0]
+        if (this.learnedTypes.includes(type))
+            return true
+        for (const parameterSet of this.templateParameters) {
+            if (parameterSet.includes(type))
+                return true
+        }
+        return false
+    }
+
+    /**
+     * If the given content string matches a known non-builtin type, return that type.
+     * @param content Content string to check.
+     * @returns The type that matches `content`, if `content` matches a known type, or `''` otherwise.
+     */
+    getKnownType(content: string): string {
+        const type = content.trim().split(' ')[0]
+        if (this.learnedTypes.includes(type))
+            return type
+        for (const parameterSet of this.templateParameters) {
+            if (parameterSet.includes(type))
+                return type
+        }
+        return ''
+    }
+
+    /**
+     * If the start of an explained subtoken is a known type, split that type from the explained subtoken.
+     * @param explained Explained subtoken.
+     * @param cursor Cursor for processing token associated with `explained`.
+     * @returns Depending on the first word in `explained`, either that word, if the word is not a known type;
+     * the empty string, if the word is a known type; or `undefined` on error.
+     */
+    splitTypeToken(
+        explained: ExplainedSubtoken,
+        cursor: ParsedTokenCursor
+    ): string | undefined {
+        const content = explained.content
+        const type = this.getKnownType(content)
+        if (type === '') {
+            console.log(`Failed to find known type in subtoken "${content}"`)
+            return content.trim().split(' ')[0]
+        }
+        const typeIdx = content.indexOf(type)
+        if (typeIdx < 0) {
+            console.log(`ERROR: Type not found in subtoken "${content}"`)
+            return undefined
+        }
+        cursor.splitTokenAtIndex(explained, typeIdx + type.length)
+        return ''
+    }
+
+    /**
+     * Add type to array of learned types.
+     * @param newType Type to add.
+     */
+    learnType(newType: string) {
+        this.learnedTypes.push(newType.trim())
+    }
+
+    /**
+     * Push a new scope onto the scope stack.
+     * @param newScope New scope to push.
+     */
+    pushScope(newScope: SemanticScope) {
+        this.scopeStack.push(newScope)
+    }
+
+    /**
+     * Pop the top of the scope stack.
+     */
+    popScope() {
+        this.scopeStack.pop()
+    }
+
+    /**
+     * Read the top of the scope stack.
+     * @returns The semantic scope at the top of the stack.
+     */
+    topScope(): SemanticScope {
+        return this.scopeStack.top()
+    }
+
+    /**
+     * Check if the current semantic scope is the specified semantic scope.
+     * @param scope Scope to test for.
+     * @returns 'true' if the current scope is `scope`, `false` otherwise.
+     */
+    scopeIs(scope: SemanticScope): boolean {
+        return this.topScope() === scope
+    }
+
+    /**
+     * Check if the current semantic scope is any of the specified semantic scopes.
+     * @param scopes Semantic scopes to test for.
+     * @returns 'true' if the current scope is in `scopes`, `false` otherwise.
+     */
+    scopeIsAnyOf(scopes: SemanticScope[]): boolean {
+        return scopes.includes(this.topScope())
     }
 
     /**
@@ -234,165 +499,45 @@ class ScopeStack {
      * @returns The semantic scope `index` entries from the top of the stack.
      */
     ancestor(index: number): SemanticScope {
-        return this.stack[this.depth - index]
+        return this.scopeStack.ancestor(index)
     }
-}
 
-/**
- * Check if the given content matches a non-builtin type.
- * @param content Content string to check.
- * @param learnedTypes Array of globally-defined non-builtin types.
- * @param templateParameters 2D array of template parameters defined at the point of the content string.
- * @returns `true` if `content` matches one of the types in `learnedTypes` or `templateParameters`, `false` otherwise.
- */
-function isKnownType(
-    content: string,
-    learnedTypes: string[],
-    templateParameters: string[][]
-): boolean {
-    const type = content.trim().split(' ')[0]
-    if (learnedTypes.includes(type))
-        return true
-    for (const parameterSet of templateParameters) {
-        if (parameterSet.includes(type))
+    /**
+     * Record parameters discovered in the current template specification
+     * as known template parameters.
+     */
+    pushTemplateParameters() {
+        if (this.newTemplateParameters.length > 0) {
+            this.templateParameters.push(this.newTemplateParameters)
+            this.newTemplateParameters = []
+        }
+    }
+
+    /**
+     * If the top of the scope stack is `template`, pop it and update the set of template parameters accordingly.
+     */
+    maybePopTemplate() {
+        if (this.scopeStack.top() === 'template') {
+            this.scopeStack.pop()
+            this.templateParameters.pop()
+        }
+    }
+
+    /**
+     * Checks whether this context has an empty scope stack.
+     * @returns `true` if the scope stack is empty, `false` otherwise.
+     */
+    checkIfEmpty() {
+        if (this.scopeStack.depth == 0)
             return true
-    }
-    return false
-}
-
-/**
- * If the given content string matches a known non-builtin type, return that type.
- * @param content Content string to check.
- * @param learnedTypes Array of globally-defined non-builtin types.
- * @param templateParameters 2D array of template parameters defined at the point of the content string.
- * @returns The type that matches `content`, if `content` matches one of the types in `learnedTypes` or `templateParameters`, or `''` otherwise.
- */
-function getKnownType(
-    content: string,
-    learnedTypes: string[],
-    templateParameters: string[][]
-): string {
-    const type = content.trim().split(' ')[0]
-    if (learnedTypes.includes(type))
-        return type
-    for (const parameterSet of templateParameters) {
-        if (parameterSet.includes(type))
-            return type
-    }
-    return ''
-}
-
-/**
- * Split the given explained subtoken and update the array of explained subtokens containing it accordingly.
- * @param explained Explained subtoken to split.
- * @param splitIndex Index at which to split `explained`.
- * @param subtokens Array of explained subtokens containing `explained`.
- * @param explainedIdx Index of `explained` within `subtokens`.
- */
-function splitTokenAtIndex(
-    explained: ExplainedSubtoken,
-    splitIndex: number,
-    subtokens: ExplainedSubtoken[],
-    explainedIdx: number
-): void {
-    const content = explained.content
-    const splitContent = content.substring(splitIndex)
-    if (splitContent === '') {
-        console.log(`No need to split token from "${content}"`)
-        return
-    }
-    const splitToken: ExplainedSubtoken = { ...explained }
-    splitToken.content = splitContent
-    explained.content = content.substring(0, splitIndex)
-    subtokens.splice(explainedIdx + 1, 0, splitToken)
-}
-
-/**
- * If the start of an explained subtoken is a known type, split that type from the explained subtoken.
- * @param explained Explained subtoken.
- * @param subtokens Array of explained subtokens containing `explained`.
- * @param explainedIdx Index of `explained` in `subtokens`.
- * @param learnedTypes Array of known types.
- * @param templateParameters Template parameters defined at this point.
- * @returns Depending on the first word in `explained`, either that word, if the word is not a known type;
- * the empty string, if the word is a known type; or `undefined` on error.
- */
-function splitTypeToken(
-    explained: ExplainedSubtoken,
-    subtokens: ExplainedSubtoken[],
-    explainedIdx: number,
-    learnedTypes: string[],
-    templateParameters: string[][]
-): string | undefined {
-    const content = explained.content
-    const type = getKnownType(content, learnedTypes, templateParameters)
-    if (type === '') {
-        console.log(`Failed to find known type in subtoken "${content}"`)
-        console.log(learnedTypes)
-        console.log(templateParameters)
-        return content.trim().split(' ')[0]
-    }
-    const typeIdx = content.indexOf(type)
-    if (typeIdx < 0) {
-        console.log(`ERROR: Type not found in subtoken "${content}"`)
-        return undefined
-    }
-    splitTokenAtIndex(explained, typeIdx + type.length, subtokens, explainedIdx)
-    return ''
-}
-
-/**
- * Add a new token to the array of new tokens, pushing any preceding explained tokens
- * onto the stack that are not already present.
- * @param newTokens Array of new tokens to update.
- * @param token Token to push onto `newTokens`.
- * @param index Index of `token` in `explained`.
- * @param explained Original array of explained subtokens.
- */
-function pushNewToken(
-    newTokens: ThemedToken[],
-    token: ThemedToken,
-    index: number,
-    explained: ExplainedSubtoken[]
-) {
-    const originalToken = explained[index].token
-    for (const subtoken of explained.slice(newTokens.length, index))
-        newTokens.push(createNewThemedToken(originalToken, subtoken))
-    newTokens.push(token)
-}
-
-/**
- * Add type to array of learned types.
- * @param newType Type to add.
- * @param learnedTypes Array of learned types.
- */
-function learnType(
-    newType: string,
-    learnedTypes: string[]
-) {
-    learnedTypes.push(newType.trim())
-}
-
-/**
- * If the top of the scope stack is `template`, pop it and update the set of template parameters accordingly.
- * @param scopeStack Stack of semantic scopes.
- * @param templateParameters Stack of template parameters.
- */
-function maybePopTemplate(
-    scopeStack: ScopeStack,
-    templateParameters: string[][]
-) {
-    if (scopeStack.top() === 'template') {
-        scopeStack.pop()
-        templateParameters.pop()
+        console.log("Unpopped scope stack!")
+        console.log(this.scopeStack)
+        return false
     }
 }
 
-export function SemanticHighlight (tokens: ThemedToken[][], _theme: ThemeRegistrationResolved) {
-    var scopeStack: ScopeStack = new ScopeStack;
-    var learnedTypes: string[] = []
-    var templateParameters: string[][] = []
-    var newTemplateParameters: string[] = []
+export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistrationResolved) {
+    var ctx: SemanticContext = new SemanticContext
     var newType: string = ''
     var semanticTokens: ThemedToken[][] = []
     for (const token of tokens) {
@@ -400,403 +545,501 @@ export function SemanticHighlight (tokens: ThemedToken[][], _theme: ThemeRegistr
         for (const parsed of token) {
             const subtokens = getExplainedSubtokens(parsed)
             if (!subtokens) {
+                // This token has no explanations.  Can't process it further, so just push it.
                 semanticParsedTokens.push(parsed)
                 continue
             }
-            var newTokens: ThemedToken[] = []
-            for (var explainedIdx = 0; explainedIdx < subtokens.length; explainedIdx++) {
-                const explained = subtokens[explainedIdx]
-                const scopes = explained["scopes"]
+            var cursor: ParsedTokenCursor = new ParsedTokenCursor(parsed, subtokens, _theme)
+            for (; cursor.subtokensRemaining(); cursor.advance()) {
+                const subtoken = cursor.current()
+                const scopes = subtoken["scopes"]
+
+                // Skip any only-whitespace tokens.
+                const trimmed = subtoken.content.trim()
+                if (trimmed === '') {
+                    cursor.flushCurrentSubtoken()
+                    continue
+                }
 
                 if (matchesAny(['comment'], scopes))
                     continue
 
-                if (scopeStack.top() === 'structure') {
+                if (ctx.scopeIs('structure')) {
                     if (matchesAny(['punctuation.section.block.end.bracket.curly'], scopes)) {
-                        scopeStack.pop()
-                        maybePopTemplate(scopeStack, templateParameters)
+                        // End of the structure scope.
+                        // Pop the scope and templates, if present, and push this subtoken.
+                        ctx.popScope()
+                        ctx.maybePopTemplate()
+                        cursor.pushCurrentSubtoken()
                         continue
-                    } else if (matchesAny(['storage.type.struct'], scopes)) {
-                        scopeStack.push('vardef')
-                        scopeStack.push('struct.name')
+                    } else if (matchesAny(['storage.type.struct', 'storage.type.union'], scopes)) {
+                        // Nested structure type definition.
+                        // Push vardef and struct.name to process it.
+                        ctx.pushScope('vardef')
+                        ctx.pushScope('struct.name')
                         continue
                     }
                 }
 
-                if (scopeStack.top() === 'block') {
+                if (ctx.scopeIs('block')) {
                     if (matchesAny(['punctuation.section.block.end'], scopes)) {
-                        scopeStack.pop()
-                        if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes))
-                            scopeStack.pop()
+                        // End of the block scope.
+                        ctx.popScope()
+                        // if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes))
+                        //     // Pop the namespace scope as well.
+                        //     ctx.popScope()
                         continue
                     }
                 }
 
-                if (scopeStack.top() === 'template') {
+                if (ctx.scopeIs('template')) {
                     if (matchesAny(['storage.type.template.argument.typename'], scopes)) {
-                        scopeStack.push('typename')
+                        // Push a typename scope to process this typename.
+                        ctx.pushScope('typename')
                         continue
                     } else if (matchesAny(['punctuation.section.angle-brackets.end.template'], scopes)) {
-                        if (newTemplateParameters.length > 0) {
-                            templateParameters.push(newTemplateParameters)
-                            newTemplateParameters = []
-                        }
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        // scopeStack.push('vardef')
+                        // End of the template scope.
+                        ctx.pushTemplateParameters()
+                        ctx.popScope()
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        ctx.splitTypeToken(subtoken, cursor)
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
                         continue
-                    // } else if ((scopeStack.ancestor(1) === 'cast' || scopeStack.ancestor(1) === 'vardef') && explained.content.trim() === '>') {
-                    //     scopeStack.pop()
-                    //     explainedIdx--
                     }
-                    if (newTokens.length != 0) {
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    }
+                    cursor.flushCurrentSubtoken()
                 }
 
-                if (scopeStack.top() === 'template.spec') {
-                    if (explained.content.trim() === '>') {
-                        // const semanticParsedToken = createNewThemedToken(parsed, explained,
-                        //     { name: 'punctuation.section.angle-brackets.end.template', theme: _theme })
-                        // pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.pop()
-                        explainedIdx--
+                if (ctx.scopeIs('template.spec')) {
+                    if (matchesAny(['punctuation.section.angle-brackets.end.template.call'], scopes)) {
+                        // End of the template specification.
+                        ctx.popScope()
+                        // continue
+                    } else if (trimmed === '<') {
+                        // Mark this token as the start of a template call.
+                        cursor.pushCurrentSubtoken({ name: 'punctuation.section.angle-brackets.begin.template.call' })
+                        // Handle this template specification.
+                        ctx.pushScope('template.spec')
                         continue
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme})
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        // scopeStack.push('vardef')
+                    } else if (trimmed === '>') {
+                        // End of the template specification.
+                        cursor.pushCurrentSubtoken({ name: 'punctuation.section.angle-brackets.end.template.call' })
+                        ctx.popScope()
+                        ctx.maybePopTemplate()
                         continue
-                    } else if (explained.content.trim() === '*') {
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'storage.modifier.pointer', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        ctx.splitTypeToken(subtoken, cursor)
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
                         continue
-                    } else if (explained.content.trim() === '&') {
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'storage.modifier.reference', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                    } else if (trimmed === '*') {
+                        // Mark this subtoken as a pointer modifier.
+                        cursor.pushCurrentSubtoken({ name: 'storage.modifier.pointer' })
+                        continue
+                    } else if (trimmed === '&') {
+                        // Mark this subtoken as a reference modifier.
+                        cursor.pushCurrentSubtoken({ name: 'storage.modifier.reference' })
                         continue
                     }
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                    cursor.flushCurrentSubtoken()
                     continue
                 }
 
-                if (['source', 'block', 'structure', 'template'].includes(scopeStack.top())) {
-                    if (matchesAny(['meta.function.definition'], scopes)) {
-                        scopeStack.push('function.head')
-                    } else if (matchesAny(['storage.type.namespace.definition'], scopes)) {
-                        scopeStack.push('namespace')
+                if (ctx.scopeIsAnyOf(['source', 'block', 'structure', 'template'])) {
+                    if (matchesAny(['meta.function.definition'], scopes) && !matchesAny(['meta.function.definition.body'], scopes)) {
+                        // Enter a function.head scope.
+                        ctx.pushScope('function.head')
+                    } else if (matchesAny(['punctuation.definition.capture.begin.lambda'], scopes)) {
+                        // Enter a function.head scope.
+                        ctx.pushScope('function.head')
+                        // } else if (matchesAny(['storage.type.namespace.definition'], scopes)) {
+                        //     // Enter a namespace scope.
+                        //     ctx.pushScope('namespace')
                     } else if (matchesAny(['storage.type.template'], scopes)) {
-                        scopeStack.push('template')
+                        // Enter a template scope.
+                        ctx.pushScope('template')
                     } else if (matchesAny(['entity.name.scope-resolution'], scopes)) {
                         continue
-                    } else if (matchesAny(['storage.type.struct'], scopes)) {
-                        scopeStack.push('vardef')
-                        scopeStack.push('struct.name')
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme})
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.push('vardef')
+                    } else if (matchesAny(['storage.type.struct', 'storage.type.union'], scopes)) {
+                        // Structure type definition.  Push a vardef and struct.name to process it.
+                        ctx.pushScope('vardef')
+                        ctx.pushScope('struct.name')
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        ctx.splitTypeToken(subtoken, cursor)
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
+                        // Enter a vardef scope to process what comes after the type.
+                        ctx.pushScope('vardef')
                     } else if (matchesAny(['storage.type.built-in'], scopes)) {
-                        scopeStack.push('vardef')
+                        // Enter a vardef scope to process what comes after the type.
+                        ctx.pushScope('vardef')
                     } else if (matchesAny(['keyword.other.using', 'keyword.other.typedef'], scopes)) {
-                        scopeStack.push('typedef')
-                    } else if (matchesAny(['punctuation.section.block.begin.bracket.curly.struct', 'punctuation.section.block.begin.bracket.curly.class'], scopes)) {
-                        scopeStack.push('structure')
+                        // Enter a typedef scope to process the type definition.
+                        ctx.pushScope('typedef')
+                    } else if (matchesAny(['punctuation.section.block.begin.bracket.curly.struct', 'punctuation.section.block.begin.bracket.curly.class', 'punctuation.section.block.begin.bracket.curly.union'], scopes)) {
+                        // Enter a structure scope to process the structure definition.
+                        ctx.pushScope('structure')
                     } else if (matchesAny(['entity.name.type.alias', 'entity.name.type.class'], scopes)) {
-                        learnType(explained.content, learnedTypes)
+                        // Add this type to the set of learned types.
+                        ctx.learnType(subtoken.content)
                     }
                     continue
                 }
 
-                if (scopeStack.top() === 'typename') {
+                if (ctx.scopeIs('typename')) {
                     if (matchesAny(['entity.name.type.template'], scopes)) {
-                        newTemplateParameters.push(explained.content)
-                    } else if (explained.content === ',') {
-                        scopeStack.pop()
+                        // Add this name to the set of known template parameters.
+                        ctx.newTemplateParameters.push(subtoken.content)
+                    } else if (subtoken.content === ',') {
+                        // End of this typename.
+                        ctx.popScope()
                     } else if (matchesAny(['punctuation.section.angle-brackets.end.template'], scopes)) {
-                        if (newTemplateParameters.length > 0) {
-                            templateParameters.push(newTemplateParameters)
-                            newTemplateParameters = []
-                        }
-                        scopeStack.pop()
-                        explainedIdx--
+                        // End of this template.
+                        // Push the learned template parameters, pop this scope, and process this token in the parent scope.
+                        ctx.pushTemplateParameters()
+                        ctx.popScope()
+                        cursor.skipAdvance()
                     }
                     continue
                 }
 
-                if (scopeStack.top() === 'typedef') {
+                if (ctx.scopeIs('typedef')) {
                     if (matchesAny(['entity.name.type'], scopes)) {
-                        newType = explained.content.trim()
+                        // Save this subtoken as a possible new type to learn.
+                        newType = trimmed
                     } else if (matchesAny(['meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
-                        const unsplitType = splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                        // Record the new type to learn.
+                        const unsplitType = ctx.splitTypeToken(subtoken, cursor)
+                        // Mark this subtoken as a type.
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
                         if (unsplitType)
                             newType = unsplitType
                         continue
                     } else if (matchesAny(['punctuation.terminator.statement'], scopes)) {
+                        // End of this typedef.
                         if (newType != '') {
-                            learnType(newType, learnedTypes)
+                            // Learn any new type found.
+                            ctx.learnType(newType)
                             newType = ''
                         }
-                        scopeStack.pop()
-                        maybePopTemplate(scopeStack, templateParameters)
+                        // Pop this typedef scope and any templates.
+                        ctx.popScope()
+                        ctx.maybePopTemplate()
                     } else if (matchesAny(['keyword.operator.assignment'], scopes)) {
-                        scopeStack.push('assignment.rhs')
-                    } else if (matchesAny(['storage.type.struct'], scopes)) {
-                        scopeStack.push('struct.name')
+                        // Push an assignment.rhs scope to handle the right-hand side of this assignment.
+                        ctx.pushScope('assignment')
+                    } else if (matchesAny(['storage.type.struct', 'storage.type.union'], scopes)) {
+                        // Push a struct.name scope to handle the name associated with this structure.
+                        ctx.pushScope('struct.name')
                     } else if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
-                        scopeStack.push('structure')
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                        // Push a structure scope to process this structure definition.
+                        ctx.pushScope('structure')
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        ctx.splitTypeToken(subtoken, cursor)
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
                         continue
                     } else if (matchesAny(['variable.other.definition.pointer.function'], scopes)) {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                        // Mark this subtoken as a type.
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
                         continue
                     }
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                    cursor.flushCurrentSubtoken()
                     continue
                 }
 
-                if (scopeStack.top() === 'struct.name') {
-                    if (!matchesAny(['entity.name.type'], scopes)) {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                    }
-                    scopeStack.pop()
-                    continue
-                }
-
-                if (scopeStack.top() === 'function.head') {
-                    if (matchesAny(['punctuation.terminator.statement'], scopes)) {
-                        scopeStack.pop()
-                        maybePopTemplate(scopeStack, templateParameters)
-                    } else if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
-                        scopeStack.pop()
-                        scopeStack.push('function.body')
-                    }
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                    continue
-                }
-                
-                if (scopeStack.top() === 'function.body') {
+                if (ctx.scopeIs('struct.name')) {
                     if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
-                        scopeStack.push('function.body')
+                        // End of this structure name.
+                        // Pop this scope and process this subtoken in the parent scope.
+                        cursor.skipAdvance()
+                        ctx.popScope()
+                        continue
+                    }
+                    if (!matchesAny(['entity.name.type'], scopes)) {
+                        // This subtoken is not yet recognized as a type.
+                        // Split subtoken at its first word.
+                        const wordSplit = trimmed.split(/(?<=^\S+)\s/)
+                        if (wordSplit.length > 1) {
+                            const splitIndex = subtoken.content.indexOf(wordSplit[0]) + wordSplit[0].length
+                            cursor.splitTokenAtIndex(subtoken, splitIndex)
+                        }
+                        // Mark this subtoken as a type.
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type' })
+                    }
+                    // Finish processing this structure name.
+                    ctx.popScope()
+                    continue
+                }
+
+                if (ctx.scopeIs('function.head')) {
+                    if (matchesAny(['punctuation.terminator.statement'], scopes)) {
+                        // End of the function head.
+                        // Pop this scope and any templates.
+                        ctx.popScope()
+                        ctx.maybePopTemplate()
+                    } else if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
+                        // Start of the function body.
+                        // Pop this scope and enter the function.body scope.
+                        ctx.popScope()
+                        ctx.pushScope('function.body')
+                    } else if (matchesAny(['keyword.operator.assignment'], scopes)) {
+                        ctx.pushScope('rhs')
+                        ctx.pushScope('assignment')
+                    }
+                    cursor.flushCurrentSubtoken()
+                    continue
+                }
+
+                if (ctx.scopeIs('function.body')) {
+                    if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
+                        // Enter this nested function.body scope.
+                        ctx.pushScope('function.body')
                     } else if (matchesAny(['punctuation.section.block.end.bracket.curly'], scopes)) {
-                        scopeStack.pop()
-                        maybePopTemplate(scopeStack, templateParameters)
+                        // End of this scope.  Pop it and any templates.
+                        ctx.popScope()
+                        ctx.maybePopTemplate()
+                    } else if (matchesAny(['punctuation.definition.capture.begin.lambda'], scopes)) {
+                        // Enter a function.head scope.
+                        ctx.pushScope('function.head')
+                    } else if (matchesAny(['punctuation.section.parens.begin', 'punctuation.section.arguments.begin.bracket.round.function.call', 'punctuation.definition.parameters.begin', 'punctuation.section.parameters.begin'], scopes)) {
+                        // Push a parens scope to process the contents in parentheses.
+                        ctx.pushScope('parens')
+                    } else if (matchesAny(['punctuation.section.angle-brackets.begin.template.call'], scopes)) {
+                        // Enter template.spec scope to handle this template call.
+                        ctx.pushScope('template.spec')
                     } else if (matchesAny(['keyword.operator.cast'], scopes)) {
-                        scopeStack.push('cast')
+                        // Enter cast scope to handle this cast operation.
+                        ctx.pushScope('cast')
                     } else if (matchesAny(['entity.name.scope-resolution'], scopes)) {
                         continue
                     } else if (matchesAny(['storage.type'], scopes)) {
-                        scopeStack.push('vardef')
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme})
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.push('vardef')
+                        // Enter vardef to process a possible variable definition.
+                        ctx.pushScope('vardef')
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
+                        // Enter vardef to process a possible variable definition.
+                        ctx.pushScope('vardef')
                     }
                     continue
                 }
 
-                if (scopeStack.top() === 'vardef') {
+                if (ctx.scopeIs('vardef')) {
                     if (matchesAny(['entity.name.function'], scopes)) {
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.function.definition', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.pop()
-                        scopeStack.push('function.head')
+                        // The function name indicates this isn't a variable definition.
+                        // Mark this subtoken as a function definition, and switch to a function.head scope.
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.function.definition' })
+                        ctx.popScope()
+                        ctx.pushScope('function.head')
                         continue
                     } else if (matchesAny(['meta.function.definition.parameters'], scopes)) {
-                        scopeStack.pop()
-                        scopeStack.push('function.head')
+                        // Switch to function.head to process the function parameters.
+                        ctx.popScope()
+                        ctx.pushScope('function.head')
                     } else if (matchesAny(['punctuation.section.block.begin.bracket.curly'], scopes)) {
-                        scopeStack.push('structure')
+                        // Push a structure scope to process the structure definition.
+                        ctx.pushScope('structure')
                     } else if (matchesAny(['punctuation.terminator.statement'], scopes)) {
-                        scopeStack.pop()
-                    } else if (explained.content.trim() === '<') {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'punctuation.section.angle-brackets.begin.template', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.push('template.spec')
+                        // End of this variable definition.
+                        ctx.popScope()
+                        cursor.flushCurrentSubtoken()
                         continue
-                    } else if (scopeStack.ancestor(1) === 'template' && explained.content.trim() === '>') {
-                        scopeStack.pop()
-                        explainedIdx--
+                    } else if (matchesAny(['punctuation.separator.delimiter.comma'], scopes)) {
+                        // End of this variable definition.
+                        ctx.popScope()
+                        cursor.flushCurrentSubtoken()
                         continue
-                    } else if (matchesAny(['keyword.operator.assignment'], scopes)) {
-                        scopeStack.push('assignment.rhs')
+                    } else if (trimmed === '<') {
+                        // Mark this subtoken as the start of a template specification.
+                        cursor.pushCurrentSubtoken({ name: 'punctuation.section.angle-brackets.begin.template' })
+                        // Enter template.spec to process the template specification.
+                        ctx.pushScope('template.spec')
+                        continue
+                    } else if (ctx.ancestor(1) === 'template' && trimmed === '>') {
+                        // End of the parent template.
+                        // Pop this scope and process this subtoken in the parent.
+                        ctx.popScope()
+                        cursor.skipAdvance()
+                        continue
                     } else if (matchesAny(['punctuation.definition.begin.bracket.square'], scopes)) {
-                        scopeStack.push('arrayidx')
-                    } else if (matchesAny(['variable.other.object', 'variable.object'], scopes.slice(-1))) {
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'meta.definition.variable.name', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                        // Start of an array index.  Push an arrayidx scope to process it.
+                        ctx.pushScope('arrayidx')
+                    } else if (matchesAny(['variable.other.object', 'variable.object', 'variable.other.assignment'], scopes.slice(-1))) {
+                        // Mark this variable as a definition.
+                        cursor.pushCurrentSubtoken({ name: 'meta.definition.variable.name' })
+                        ctx.pushScope('rhs')
                         continue
-                    } else if (matchesAny(['meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
+                    } else if (matchesAny(['meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.body.union', 'meta.tail.union', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
+                        // Process this variable definition.
+                        // Split at any ':' or '[' characters to get the variable name itself.
                         var splitIndex = -1
-                        if (matchesAny(['meta.body.struct', 'meta.body.class', 'meta.block'], scopes.slice(-1))) {
-                            splitIndex = explained.content.indexOf(':')
+                        if (matchesAny(['meta.body.struct', 'meta.body.class', 'meta.body.union', 'meta.block'], scopes.slice(-1))) {
+                            splitIndex = subtoken.content.indexOf(':')
                             if (splitIndex > 0) {
-                                splitTokenAtIndex(explained, splitIndex, subtokens, explainedIdx)
+                                // Bitfield description.  Split at the ':'.
+                                cursor.splitTokenAtIndex(subtoken, splitIndex)
                             } else if (splitIndex < 0) {
-                                splitIndex = explained.content.indexOf('[')
-                                if (splitIndex > 0) {
-                                    splitTokenAtIndex(explained, splitIndex, subtokens, explainedIdx)
-                                }
+                                splitIndex = subtoken.content.indexOf('[')
+                                if (splitIndex > 0)
+                                    // Array member.
+                                    cursor.splitTokenAtIndex(subtoken, splitIndex)
                             }
                         }
                         if (splitIndex === 0) {
-                            pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                            cursor.pushCurrentSubtoken()
                             continue
                         }
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'meta.definition.variable.name', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                        // Mark this variable name as a definition.
+                        cursor.pushCurrentSubtoken({ name: 'meta.definition.variable.name' })
+                        ctx.pushScope('rhs')
                         continue
-                    } else if (explained.content === '*') {
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'storage.modifier.pointer', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                    } else if (subtoken.content === '*') {
+                        // Mark this subtoken as a pointer modifier.
+                        cursor.pushCurrentSubtoken({ name: 'storage.modifier.pointer' })
                         continue
-                    } else if (explained.content === '&') {
-                        // Create new token with additional scope
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'storage.modifier.reference', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                    } else if (subtoken.content === '&') {
+                        // Mark this subtoken as a reference modifier.
+                        cursor.pushCurrentSubtoken({ name: 'storage.modifier.reference' })
                         continue
                     }
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                    cursor.flushCurrentSubtoken()
                     continue
                 }
 
-                if (scopeStack.top() === 'parens') {
-                    if (matchesAny(['punctuation.section.parens.end.bracket.round'], scopes)) {
-                        scopeStack.pop()
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
+                if (ctx.scopeIs('rhs')) {
+                    if (matchesAny(['punctuation.terminator.statement', 'punctuation.definition.capture.end.lambda'], scopes)) {
+                        // End of this assignment.  Process this subtoken in the parent scope.
+                        ctx.popScope()
+                        cursor.skipAdvance()
                         continue
-                    } else if (explained.content.trim() === '<') {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'punctuation.section.angle-brackets.begin.template', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.push('template.spec')
-                        continue
-                    }
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
-                }
-                
-                if (scopeStack.top() === 'assignment.rhs') {
-                    if (matchesAny(['punctuation.terminator.statement'], scopes)) {
-                        scopeStack.pop()
-                        explainedIdx--
+                    } else if (matchesAny(['keyword.operator.assignment'], scopes)) {
+                        // Push an assignment.rhs scope to process the right-hand side of this assignment.
+                        ctx.pushScope('assignment')
                     } else if (matchesAny(['punctuation.separator.delimiter'], scopes)) {
-                        scopeStack.pop()
-                    } else if (matchesAny(['punctuation.section.parens.begin'], scopes)) {
-                        scopeStack.push('parens')
-                    } else if (scopeStack.ancestor(1) === 'template' && explained.content.trim() === '>') {
-                        scopeStack.pop()
-                        explainedIdx--
-                    } else if (isKnownType(explained.content, learnedTypes, templateParameters)) {
-                        splitTypeToken(explained, subtokens, explainedIdx, learnedTypes, templateParameters)
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'entity.name.type.defined', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        continue
-                    } else if (explained.content.trim() === '<') {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'punctuation.section.angle-brackets.begin.template', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.push('template.spec')
-                        continue
+                        // End of this variable definition.
+                        ctx.popScope()
                     }
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                    cursor.flushCurrentSubtoken()
+                    continue
                 }
-                
-                if (scopeStack.top() === 'cast') {
-                    if (explained.content.trim() === '<') {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'punctuation.section.angle-brackets.begin.template', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                        scopeStack.push('template.spec')
-                    } else if (explained.content.trim() === '>') {
-                        const semanticParsedToken = createNewThemedToken(parsed, explained,
-                            { name: 'punctuation.section.angle-brackets.end.template', theme: _theme })
-                        pushNewToken(newTokens, semanticParsedToken, explainedIdx, subtokens)
-                    // } else if (matchesAny(['punctuation.section.angle-brackets.end.template'], scopes)) {
-                        scopeStack.pop()
-                        maybePopTemplate(scopeStack, templateParameters)
+
+                if (ctx.scopeIs('parens')) {
+                    if (matchesAny(['punctuation.section.parens.end.bracket.round', 'punctuation.section.arguments.end.bracket.round.function.call', 'punctuation.definition.parameters.end', 'punctuation.section.parameters.end'], scopes)) {
+                        // End of the parens scope.
+                        ctx.popScope()
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        ctx.splitTypeToken(subtoken, cursor)
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
+                        continue
+                    } else if (matchesAny(['punctuation.definition.parameters.begin.lambda'], scopes)) {
+                        // Enter a function.head scope.
+                        ctx.pushScope('function.head')
+                    }
+                    cursor.flushCurrentSubtoken()
+                }
+
+                if (ctx.scopeIs('assignment')) {
+                    if (matchesAny(['punctuation.terminator.statement', 'punctuation.definition.capture.end.lambda'], scopes)) {
+                        // End of this assignment.  Process this subtoken in the parent scope.
+                        ctx.popScope()
+                        cursor.skipAdvance()
+                    } else if (matchesAny(['punctuation.separator.delimiter'], scopes)) {
+                        // End of this assignment.
+                        ctx.popScope()
+                        cursor.skipAdvance()
+                    } else if (matchesAny(['punctuation.section.parens.begin', 'punctuation.section.arguments.begin.bracket.round.function.call', 'punctuation.definition.parameters.begin'], scopes)) {
+                        // Push a parens scope to process the contents in parentheses.
+                        ctx.pushScope('parens')
+                    } else if (matchesAny(['keyword.operator.cast'], scopes)) {
+                        // Enter cast scope to handle this cast operation.
+                        ctx.pushScope('cast')
+                    } else if (ctx.ancestor(1) === 'template' && trimmed === '>') {
+                        // End of the parent template scope.  Pop this scope and process this subtoken in the parent.
+                        ctx.popScope()
+                        cursor.skipAdvance()
+                    } else if (ctx.isKnownType(subtoken.content)) {
+                        // Mark this subtoken as a type.
+                        ctx.splitTypeToken(subtoken, cursor)
+                        cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
+                        continue
+                    } else if (matchesAny(['punctuation.section.angle-brackets.begin.template.call'], scopes)) {
+                        ctx.pushScope('template.spec')
+                        continue
+                    } else if (matchesAny(['variable.parameter.capture'], scopes)) {
+                        cursor.pushCurrentSubtoken({ name: 'variable.parameter.initializer' })
+                    }
+                    cursor.flushCurrentSubtoken()
+                }
+
+                if (ctx.scopeIs('cast')) {
+                    if (matchesAny(['punctuation.section.angle-brackets.begin.template.call'], scopes)) {
+                        cursor.flushCurrentSubtoken()
+                        // Handle this template specification.
+                        ctx.pushScope('template.spec')
+                    } else if (matchesAny(['punctuation.section.angle-brackets.end.template.call'], scopes)) {
+                        cursor.flushCurrentSubtoken()
+                        // End of the template specification.  Pop the scope and any templates.
+                        ctx.popScope()
+                        ctx.maybePopTemplate()
+                    } else if (trimmed === '<') {
+                        // Mark this token as the start of a template call.
+                        cursor.pushCurrentSubtoken({ name: 'punctuation.section.angle-brackets.begin.template.call' })
+                        // Handle this template specification.
+                        ctx.pushScope('template.spec')
+                    } else if (matchesAny(['punctuation.section.parens.begin'], scopes)) {
+                        // Push a parens scope to process the contents in parentheses.
+                        ctx.pushScope('parens')
+                    } else if (matchesAny(['punctuation.terminator.statement'], scopes)) {
+                        // End of this variable definition.
+                        ctx.popScope()
+                        cursor.skipAdvance()
+                    } else if (matchesAny(['punctuation.separator.delimiter'], scopes)) {
+                        // End of this assignment.
+                        ctx.popScope()
+                        cursor.skipAdvance()
                     }
                     continue
                 }
 
-                if (scopeStack.top() === 'arrayidx') {
+                if (ctx.scopeIs('arrayidx')) {
                     if (matchesAny(['punctuation.definition.end.bracket.square'], scopes))
-                        scopeStack.pop()
-                    if (newTokens.length != 0)
-                        pushNewToken(newTokens, createNewThemedToken(parsed, explained), explainedIdx, subtokens)
+                        // End of this array index expression.
+                        ctx.popScope()
+                    cursor.flushCurrentSubtoken()
                 }
 
                 if (matchesAny(['punctuation.section.block.begin'], scopes)) {
-                    scopeStack.push('block')
+                    // Start of a block scope.
+                    ctx.pushScope('block')
                 } else if (matchesAny(['punctuation.section.block.end'], scopes)) {
-                    scopeStack.pop()
-                    if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes))
-                        scopeStack.pop()
+                    // End of a block scope.
+                    ctx.popScope()
+                    // if (matchesAny(['punctuation.section.block.end.bracket.curly.namespace'], scopes))
+                    //     // End the namespace scope as well.
+                    //     ctx.popScope()
                 } else if (matchesAny(['punctuation.section.angle-brackets.begin.template'], scopes)) {
-                    scopeStack.push('template')
-                } else if (matchesAny(['punctuation.section.angle-brackets.end.template'], scopes)) {
-                    if (newTemplateParameters.length > 0) {
-                        templateParameters.push(newTemplateParameters)
-                        newTemplateParameters = []
-                    }
-                    scopeStack.pop()
+                    // Start of a template.
+                    ctx.pushScope('template')
+                } else if (matchesAny(['punctuation.definition.capture.begin.lambda'], scopes)) {
+                    // Enter a function.head scope.
+                    ctx.pushScope('function.head')
                 }
             }
-            if (newTokens.length === 0) {
+            if (cursor.newTokens.length === 0) {
+                // No new tokens were pushed, so just push the original token.
                 semanticParsedTokens.push(parsed)
             } else {
-                for (const newToken of newTokens)
+                for (const newToken of cursor.newTokens) {
                     semanticParsedTokens.push(newToken)
+                }
             }
         }
         semanticTokens.push(semanticParsedTokens)
     }
-    if (scopeStack.depth != 0) {
-        console.log("Unpopped scope stack!")
-        console.log(scopeStack)
-    }
+    // Check if the context is empty.  We don't do anything with the result of this check,
+    // but the output is helpful for debugging.
+    ctx.checkIfEmpty()
     return semanticTokens
 }

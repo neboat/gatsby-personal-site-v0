@@ -107,9 +107,11 @@ const CilkHighlightPage = () => {
                             {/* <label htmlFor="inputCodeStyle" className="text-md text-gray-900">Style:</label> */}
                             {/* <span class='tooltip rounded-lg shadow-lg p-1 bg-gray-100 -mt-8'>Select style</span> */}
                             <select className="text-md text-gray-900 bg-gray-50 rounded px-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500" name="inputCodeStyle" id="inputCodeStyle" onChange={handleInput} value={formData.inputCodeStyle}>
-                                <option value="cilkbook">Cilkbook</option>
-                                <option value="slack-dark">Slack (dark)</option>
-                                <option value="slack-ochin">Slack (light)</option>
+                                <option value="cilkbook">Cilkbook theme</option>
+                                <option value="slack-dark">Slack dark</option>
+                                <option value="slack-ochin">Slack light</option>
+                                <option value="solarized-dark">Solarized dark</option>
+                                <option value="solarized-light">Solarized light</option>
                             </select>
                             {/* </div> */}
                         </div>
