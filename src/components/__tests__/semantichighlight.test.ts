@@ -42,6 +42,7 @@ const checkTokenScopes = (
     expected: { content: string, scopeName: string[], notScopeName?: string[] }[]
 ) => {
     var eIdx = 0
+    var lastMatch = ''
     // Scan each token in each line.
     for (const line of tokens) {
         for (const tok of line) {
@@ -58,7 +59,7 @@ const checkTokenScopes = (
                                 scopeName: expect.stringMatching(scopeName),
                                 themeMatches: expect.anything(),
                             }])
-                        expect(ex).toEqual({
+                        expect(ex, `Expected scope not found, expected token #${eIdx}, last match '${lastMatch}'`).toEqual({
                             content: ex.content,
                             scopes: expect.arrayContaining(scopesArray[0])
                         })
@@ -69,11 +70,12 @@ const checkTokenScopes = (
                                     scopeName: expect.stringMatching(scopeName),
                                     themeMatches: expect.anything(),
                                 }])
-                            expect(ex).toEqual({
+                            expect(ex, `Expected excluded scope found, expected token #${eIdx}, last match '${lastMatch}'`).toEqual({
                                 content: ex.content,
                                 scopes: expect.not.arrayContaining(notScopesArray[0])
                             })
                         }
+                        lastMatch = contentToMatch
                         // Advance to the next piece of expected content.
                         eIdx++
                         if (eIdx == expected.length)
@@ -85,7 +87,7 @@ const checkTokenScopes = (
         }
     }
     // If we reach the end of the input without checking all expected entries, throw and error.
-    expect(eIdx).to.equal(expected.length)
+    expect(eIdx).to.equal(expected.length, `Expected '${expected[eIdx].content}' not found, last match at '${lastMatch}'`)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
