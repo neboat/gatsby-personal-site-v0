@@ -48,9 +48,9 @@ const Layout = ({ children }) => {
           {` `}
           &middot; Built with
           {` `}
-          <a href="https://www.gatsbyjs.com">Gatsby ↗</a>
+          <a href="https://www.gatsbyjs.com">Gatsby</a>
           {` `}
-          &middot; <a href="http://accessibility.mit.edu/">Accessibility ↗</a>
+          &middot; <a href="http://accessibility.mit.edu/">Accessibility</a>
         </footer>
       </div>
     </>

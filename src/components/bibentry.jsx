@@ -6,7 +6,7 @@ const formatURL = (paper) => {
         return (
             <div className="bg-blue-500 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-500 border border-blue-700">
                 <span className="block text-md px-1">
-                    <a className="text-white" href={`https://doi.org/` + paper.DOI}>DOI ↗</a>
+                    <a className="text-white" href={`https://doi.org/` + paper.DOI}>DOI</a>
                 </span>
             </div>
         )
@@ -15,7 +15,7 @@ const formatURL = (paper) => {
         return (
             <div className="bg-blue-500 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-500 border border-blue-700">
                 <span className="block text-md px-1">
-                    <a className="text-white" href={paper.URL}>URL ↗</a>
+                    <a className="text-white" href={paper.URL}>URL</a>
                 </span>
             </div>
         )

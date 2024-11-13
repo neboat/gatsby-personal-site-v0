@@ -71,7 +71,7 @@ const IndexPage = () => {
             <a
               href={`${link.url}${utmParameters}`}
               className={styles.listItemLink}>
-              {link.text} ↗
+              {link.text}
             </a>
             {i !== moreLinks.length - 1 && <> · </>}
           </React.Fragment>
