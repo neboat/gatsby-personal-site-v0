@@ -100,10 +100,10 @@ const CodeInputOutput = () => {
             <div className="flex">
                 <label htmlFor="inputCode" className="block py-1 text-md">Enter code to highlight:</label>
             </div>
-            <textarea className={"flex lg:order-2 mb-2 lg:mb-0 w-full font-mono p-2.5 text-sm text-gray-950 dark:text-gray-50 bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500 whitespace-pre overflow-x-scroll"}
+            <textarea className={"flex lg:order-2 mb-2 lg:mb-0 w-full font-mono p-2.5 text-sm text-gray-950 dark:text-gray-50 bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500 whitespace-pre overflow-x-auto"}
                 name="inputCode" id="inputCode"
                 onChange={handleInput}
-                rows={formData.inputCode.split('\n').length - 1}
+                rows={formData.inputCode.split('\n').length}
                 value={formData.inputCode}></textarea>
             <div className="flex space-x-4">
                 <div className="flex has-tooltip">
