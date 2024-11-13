@@ -42,8 +42,8 @@ const Header = ({ siteTitle }) => {
     ['Home', '/'],
     ['Projects', '/projects'],
     ['Code Highlighter', '/code-highlight'],
-    ['Papers', '/papers'],
     ['Teaching', '/teaching'],
+    ['Papers', '/papers'],
     ['Bio', '/bio'],
     ['Contact', '/contact']
   ]

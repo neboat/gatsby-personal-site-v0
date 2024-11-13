@@ -12,25 +12,25 @@ const links = [
     text: "Code highlighter",
     url: "/code-highlight",
     description:
-      "Tool to make high-quality syntax-highlighted code snippets for slides.",
+      "Make high-quality syntax-highlighted code snippets for slides.",
   },
   {
     text: "Projects",
     url: "/projects",
     description:
-      "Software and other projects I have worked on.",
+      "Find out more about current research and software projects.",
   },
-  {
-    text: "Papers",
-    url: "/papers",
-    description:
-      "My academic bibliography.",
-  },
+  // {
+  //   text: "Papers",
+  //   url: "/papers",
+  //   description:
+  //     "Browse my academic bibliography.",
+  // },
   {
     text: "Teaching",
     url: "/teaching",
     description:
-      "Materials for classes I have taught.",
+      "Get links to slides, handouts, and other course materials.",
   },
 ]
 

@@ -20,7 +20,7 @@ import { MyHighlight } from "./cilkbook-codeblock"
 // };
 
 export const Code = props => {
-    console.log(props)
+    // console.log(props)
     const className = props.children.props.className || "";
     const code = props.children.props.children.trim();
     const language = className.replace(/language-/, "");
