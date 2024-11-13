@@ -9,17 +9,19 @@ const NavLink = ({ children, ...props }) => (
   >{children}</Link>
 )
 
+const isBrowser = () => typeof window !== "undefined"
+
 /**
  * Get the default light/dark theme.
  */
 function getDefaultTheme() {
   // First try to use the theme in local storage.
-  const savedTheme = window.localStorage.getItem("theme")
+  const savedTheme = isBrowser() && window.localStorage.getItem("theme")
   if (savedTheme) {
     return savedTheme
   }
   // Otherwise, use the system preference.
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  if (isBrowser() && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return "dark"
   }
   return "light"
@@ -31,7 +33,9 @@ const Header = ({ siteTitle }) => {
     document.documentElement.classList.toggle(
       'dark', isDark === 'dark'
     )
-    window.localStorage.setItem("theme", isDark)
+    if (isBrowser()) {
+      window.localStorage.setItem("theme", isDark)
+    }
   }, [isDark])
 
   const navLinks = [

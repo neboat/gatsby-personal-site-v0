@@ -54,15 +54,22 @@ const copyToClipboard = str => {
         // Most modern browsers support the Navigator API
         navigator.clipboard.writeText(str).then(
             function () {
-                console.log("Copying to clipboard was successful!");
+                // console.log("Copying to clipboard was successful!");
             },
             function (err) {
                 console.error("Could not copy text: ", err);
             }
         );
-    } else if (window.clipboardData) {
-        // Internet Explorer
-        window.clipboardData.setData("Text", str);
+    } else {
+        // Fallback using the deprecated `document.execCommand`.
+        // https://developer.mozilla.org/en-US/docs/Web/API/Document/execCommand#browser_compatibility
+        const cb = e => {
+            e.clipboardData.setData("text/plain", str);
+            e.preventDefault();
+        };
+        document.addEventListener("copy", cb);
+        document.execCommand("copy");
+        document.removeEventListener("copy", cb);
     }
 };
 
