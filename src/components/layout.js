@@ -15,6 +15,7 @@ const Layout = ({ children }) => {
   const data = useStaticQuery(graphql`
     query SiteTitleQuery {
       site {
+        buildTime(formatString: "YYYY-MM-DD")
         siteMetadata {
           title
         }
@@ -27,10 +28,11 @@ const Layout = ({ children }) => {
       <Header siteTitle={data.site.siteMetadata?.title || `Title`} />
       <div
         style={{
-          margin: `0 auto`,
-          maxWidth: `var(--size-content)`,
+          // margin: `0 auto`,
+          // maxWidth: `var(--size-content)`,
           padding: `var(--size-gutter)`,
         }}
+        className="dark:bg-zinc-900"
       >
         <main className="flex flex-col min-h-screen items-center">{children}</main>
         <footer
@@ -38,10 +40,17 @@ const Layout = ({ children }) => {
             marginTop: `var(--space-5)`,
             fontSize: `var(--font-sm)`,
           }}
+          className="text-zinc-500"
         >
-          © {new Date().getFullYear()} &middot; Built with
+          © {new Date().getFullYear()} {data.site.siteMetadata?.title}
           {` `}
-          <a href="https://www.gatsbyjs.com">Gatsby</a>
+          &middot; Last updated {data.site.buildTime}
+          {` `}
+          &middot; Built with
+          {` `}
+          <a href="https://www.gatsbyjs.com">Gatsby ↗</a>
+          {` `}
+          &middot; <a href="http://accessibility.mit.edu/">Accessibility ↗</a>
         </footer>
       </div>
     </>

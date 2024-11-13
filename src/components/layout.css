@@ -45,9 +45,9 @@ body {
 }
 a {
   background-color: transparent;
-  color: var(--color-primary);
+  /* color: var(--color-primary); */
   text-decoration: none;
-  font-weight: 500;
+  /* font-weight: 500; */
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
@@ -177,9 +177,9 @@ p *:last-child {
 li > p {
   margin-bottom: calc(var(--space-4) / 2);
 }
-p {
+/* p {
   max-width: 680px;
-}
+} */
 code {
   font-size: 0.875rem;
 }
@@ -199,7 +199,7 @@ acronym {
 }
 tt,
 code {
-  background-color: var(--color-code-bg);
+  /* background-color: var(--color-code-bg); */
   border-radius: var(--border-radius);
   color: var(--color-code);
   font-family: var(--font-mono);
