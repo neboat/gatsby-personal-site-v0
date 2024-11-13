@@ -1,5 +1,12 @@
 import { ThemedToken, ThemeRegistrationResolved } from 'shiki/bundle/web'
 
+const DEBUG = false
+
+function debug_print(str) {
+    if (DEBUG)
+        console.log(str)
+}
+
 /**
  * Subcomponent of a ThemedToken with its own explanation.
  */
@@ -430,7 +437,7 @@ class SemanticContext {
         const content = explained.content
         const type = this.getKnownType(content)
         if (type === '') {
-            console.log(`Failed to find known type in subtoken "${content}"`)
+            debug_print(`Failed to find known type in subtoken "${content}"`)
             return content.trim().split(' ')[0]
         }
         const typeIdx = content.indexOf(type)
@@ -456,6 +463,7 @@ class SemanticContext {
      */
     pushScope(newScope: SemanticScope) {
         this.scopeStack.push(newScope)
+        debug_print(this.scopeStack.stack)
     }
 
     /**
@@ -463,6 +471,7 @@ class SemanticContext {
      */
     popScope() {
         this.scopeStack.pop()
+        debug_print(this.scopeStack.stack)
     }
 
     /**
@@ -529,7 +538,7 @@ class SemanticContext {
         if (this.scopeStack.depth == 0)
             return true
         console.log("Unpopped scope stack!")
-        console.log(this.scopeStack)
+        debug_print(this.scopeStack)
         return false
     }
 }
@@ -551,6 +560,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
             for (; cursor.subtokensRemaining(); cursor.advance()) {
                 const subtoken = cursor.current()
                 const scopes = subtoken["scopes"]
+                debug_print(subtoken)
 
                 // Skip any only-whitespace tokens.
                 const trimmed = subtoken.content.trim()
@@ -668,7 +678,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                         cursor.pushCurrentSubtoken({ name: 'entity.name.type.defined' })
                         // Enter a vardef scope to process what comes after the type.
                         ctx.pushScope('vardef')
-                    } else if (matchesAny(['storage.type.built-in'], scopes)) {
+                    } else if (matchesAny(['storage.type.built-in', 'support.type.built-in'], scopes)) {
                         // Enter a vardef scope to process what comes after the type.
                         ctx.pushScope('vardef')
                     } else if (matchesAny(['keyword.other.using', 'keyword.other.typedef'], scopes)) {
@@ -705,7 +715,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                     if (matchesAny(['entity.name.type'], scopes)) {
                         // Save this subtoken as a possible new type to learn.
                         newType = trimmed
-                    } else if (matchesAny(['meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
+                    } else if (matchesAny(['variable.other.unknown', 'variable.other.object.declare', 'meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
                         // Record the new type to learn.
                         const unsplitType = ctx.splitTypeToken(subtoken, cursor)
                         // Mark this subtoken as a type.
@@ -863,9 +873,9 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                     } else if (matchesAny(['punctuation.definition.begin.bracket.square'], scopes)) {
                         // Start of an array index.  Push an arrayidx scope to process it.
                         ctx.pushScope('arrayidx')
-                    } else if (matchesAny(['variable.other.object', 'variable.object', 'variable.other.assignment'], scopes.slice(-1))) {
+                    } else if (matchesAny(['variable.other.declare', 'variable.other.object', 'variable.other.unknown', 'variable.object', 'variable.other.assignment'], scopes.slice(-1))) {
                         // Mark this variable as a definition.
-                        cursor.pushCurrentSubtoken({ name: 'variable.other.object.declare' })
+                        cursor.pushCurrentSubtoken({ name: 'variable.other.declare' })
                         ctx.pushScope('rhs')
                         continue
                     } else if (matchesAny(['meta.body.function', 'meta.body.struct', 'meta.tail.struct', 'meta.body.class', 'meta.body.union', 'meta.tail.union', 'meta.block', 'meta.parens', 'source'], scopes.slice(-1))) {
@@ -889,7 +899,7 @@ export function SemanticHighlight(tokens: ThemedToken[][], _theme: ThemeRegistra
                             continue
                         }
                         // Mark this variable name as a definition.
-                        cursor.pushCurrentSubtoken({ name: 'variable.other.object.declare' })
+                        cursor.pushCurrentSubtoken({ name: 'variable.other.declare' })
                         ctx.pushScope('rhs')
                         continue
                     } else if (subtoken.content === '*') {

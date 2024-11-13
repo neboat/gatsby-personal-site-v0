@@ -487,7 +487,7 @@
       "name": "Variable and parameter name",
       "scope": [
         "variable",
-        "variable.other.object.declare",
+        "variable.other.declare",
         "variable.other.definition",
         "meta.definition.variable.name",
         "support.variable",
@@ -507,7 +507,7 @@
     {
       "name": "Variable declaration",
       "scope": [
-        "variable.other.object.declare",
+        "variable.other.declare",
         "variable.other.definition",
         "meta.definition.variable.name"
       ],
