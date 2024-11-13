@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Simple CSS to add line numbers to code. */
 code {
   counter-reset: step;
   counter-increment: step 0;
@@ -14,14 +15,19 @@ code .line::before {
   margin-right: 1.5rem;
   display: inline-block;
   text-align: right;
-  color: rgba(115, 138, 148, 0.4);
+  color: theme('colors.slate[300]');
+  /* color: rgba(115, 138, 148, 0.4); */
+}
+
+#alert p {
+  margin-bottom: 0;
 }
 
 /* Very simple CSS for tooltips in Tailwind.  Copied from: https://github.com/cosbgn/tailwindcss-tooltips */
-/* .tooltip {
+.tooltip {
   @apply invisible absolute;
 }
 
 .has-tooltip:hover .tooltip {
   @apply visible z-50
-} */
+}
