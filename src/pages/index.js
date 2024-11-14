@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Link } from "gatsby"
+import { Link, withPrefix } from "gatsby"
 import { StaticImage } from "gatsby-plugin-image"
 
 import Layout from "../components/layout"
@@ -45,7 +45,7 @@ const moreLinks = [
   },
   {
     text: "CV",
-    url: "/cv.pdf"
+    url: withPrefix("/cv.pdf")
   }
 ]
 

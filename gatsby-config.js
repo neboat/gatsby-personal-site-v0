@@ -12,8 +12,9 @@ module.exports = {
     title: `Tao B. Schardl`,
     description: `Tao B. Schardl's personal website`,
     author: `@neboat`,
-    siteUrl: `https://neboat.mit.edu/`,
+    siteUrl: `https://web.mit.edu/neboat/www`,
   },
+  pathPrefix: `/neboat/www`,
   plugins: [
     `gatsby-plugin-image`,
     {
