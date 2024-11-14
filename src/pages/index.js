@@ -53,18 +53,17 @@ const utmParameters = `?utm_source=neboat-personal-site` // `?utm_source=starter
 
 const IndexPage = () => {
   return (
-    // <main className="bg-zinc-50 dark:bg-zinc-950">
     <Layout pageTitle="Home">
       <article className="prose prose-gray dark:prose-invert
         prose-code:before:hidden prose-code:after:hidden
         prose-inline-code:bg-amber-50 dark:prose-inline-code:bg-amber-950">
-        <h1 className="align-baseline">
+        <h1 className="flex-row">
           <StaticImage
             objectPosition="50% 40%"
             class="h-32 w-32 align-baseline"
             alt="Picture of Tao B. (TB) Schardl"
             src="../images/self_2015_nobkg.png"
-          /> {` `} Tao B. (TB) Schardl</h1>
+          /> {` `} <span className="inline-block align-baseline">Tao B. (TB) Schardl</span></h1>
         <Content />
         {moreLinks.map((link, i) => (
           <React.Fragment key={link.url}>
@@ -99,7 +98,6 @@ const IndexPage = () => {
           ))}
         </ul> */}
     </Layout>
-    // </main>
   )
 }
 

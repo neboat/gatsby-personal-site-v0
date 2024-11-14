@@ -10,6 +10,8 @@ module.exports = {
   },
   plugins: [
     require('@tailwindcss/typography'),
+    // New plugin to separately handle inline code.
+    // https://github.com/tailwindlabs/tailwindcss/discussions/12496
     function ({ addVariant }) {
       addVariant(
         'prose-inline-code',

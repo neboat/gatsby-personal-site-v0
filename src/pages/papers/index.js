@@ -19,21 +19,19 @@ const PapersPage = () => {
         return compareMonthsIssued
     })
     return (
-        <main>
-            <Layout pageTitle="Papers">
-                <article className="prose prose-zinc dark:prose-invert prose-code:before:hidden prose-code:after:hidden">
-                    <h1>Papers</h1>
-                    <h2>Featured papers</h2>
-                    {MyPapers.data.filter(paper => featuredPapers.includes(paper["citation-key"])).map(paper => {
-                        return <Bib key={'featured-' + paper.id} paper={paper} idprefix="featured-" annote={formatAnnotation(paper)} /> // classExtra="border-stone-300 border-l-rose-700 dark:border-stone-600 dark:border-l-rose-400" />
-                    })}
-                    <h2>All papers</h2>
-                    {MyPapers.data.map(paper => {
-                        return <Bib key={paper.id} paper={paper} annote={formatAnnotation(paper)} />
-                    })}
-                </article>
-            </Layout>
-        </main>
+        <Layout pageTitle="Papers">
+            <article className="prose prose-zinc dark:prose-invert prose-code:before:hidden prose-code:after:hidden">
+                <h1>Papers</h1>
+                <h2>Featured papers</h2>
+                {MyPapers.data.filter(paper => featuredPapers.includes(paper["citation-key"])).map(paper => {
+                    return <Bib key={'featured-' + paper.id} paper={paper} idprefix="featured-" annote={formatAnnotation(paper)} />
+                })}
+                <h2>All papers</h2>
+                {MyPapers.data.map(paper => {
+                    return <Bib key={paper.id} paper={paper} annote={formatAnnotation(paper)} />
+                })}
+            </article>
+        </Layout>
     )
 }
 
