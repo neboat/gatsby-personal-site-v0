@@ -60,7 +60,7 @@ const IndexPage = () => {
         <h1 className="flex-row">
           <StaticImage
             objectPosition="50% 40%"
-            class="h-32 w-32 align-baseline"
+            className="h-32 w-32 !align-baseline"
             alt="Picture of Tao B. (TB) Schardl"
             src="../images/self_2015_nobkg.png"
           /> {` `} <span className="inline-block align-baseline">Tao B. (TB) Schardl</span></h1>
