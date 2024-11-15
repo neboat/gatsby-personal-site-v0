@@ -112,8 +112,8 @@ const CodeInputOutput = () => {
                         Copy
                     </button>
                 </div>
-                <div className="flex flex-wrap items-start gap-x-2">
-                    <div className="block has-tooltip">
+                <div className="flex flex-wrap gap-x-2">
+                    <div className="table-cell whitespace-nowrap has-tooltip">
                         <label htmlFor="inputCodeLang" className="text-md mr-1">Language:</label>
                         {/* <Tooltip>Select language</Tooltip> */}
                         <select className="text-md rounded px-1 border bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500" name="inputCodeLang" id="inputCodeLang" onChange={handleInput} value={formData.inputCodeLang}>
@@ -123,7 +123,7 @@ const CodeInputOutput = () => {
                             <option value="c">C</option>
                         </select>
                     </div>
-                    <div className="flex has-tooltip">
+                    <div className="table-cell whitespace-nowrap has-tooltip">
                         <label htmlFor="inputCodeStyle" className="text-md mr-1">Theme:</label>
                         {/* <Tooltip>Select style</Tooltip> */}
                         <select className="text-md rounded px-1 border bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500" name="inputCodeStyle" id="inputCodeStyle" onChange={handleInput} value={formData.inputCodeStyle}>
