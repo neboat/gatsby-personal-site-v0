@@ -100,20 +100,20 @@ const CodeInputOutput = () => {
             <div className="flex">
                 <label htmlFor="inputCode" className="block py-1 text-md">Enter code to highlight:</label>
             </div>
-            <textarea className={"flex lg:order-2 mb-2 lg:mb-0 w-full font-mono p-2.5 text-sm text-gray-950 dark:text-gray-50 bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500 whitespace-pre overflow-x-auto"}
+            <textarea className={"flex lg:order-2 mb-2 lg:mb-0 font-mono p-2.5 text-sm text-gray-950 dark:text-gray-50 bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500 whitespace-pre overflow-x-auto"}
                 name="inputCode" id="inputCode"
                 onChange={handleInput}
                 rows={formData.inputCode.split('\n').length}
                 value={formData.inputCode}></textarea>
-            <div className="flex space-x-4">
-                <div className="flex has-tooltip">
+            <div className="flex items-end gap-x-4">
+                <div className="block has-tooltip">
                     {/* <Tooltip>Copy formatted text to clipboard</Tooltip> */}
                     <button className="text-md bg-blue-500 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-500 text-white px-3 border border-blue-700 rounded" onClick={copyFormattedToClipboard}>
                         Copy
                     </button>
                 </div>
-                <div className="flex space-x-2">
-                    <div className="flex has-tooltip">
+                <div className="flex flex-wrap items-start gap-x-2">
+                    <div className="block has-tooltip">
                         <label htmlFor="inputCodeLang" className="text-md mr-1">Language:</label>
                         {/* <Tooltip>Select language</Tooltip> */}
                         <select className="text-md rounded px-1 border bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 focus:ring-blue-500 focus:border-blue-500" name="inputCodeLang" id="inputCodeLang" onChange={handleInput} value={formData.inputCodeLang}>
@@ -136,7 +136,7 @@ const CodeInputOutput = () => {
                     </div>
                 </div>
             </div>
-            <div id="outputCode" className="not-prose flex lg:order-2 border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-800 rounded max-w-full"></div>
+            <div id="outputCode" className="not-prose flex lg:order-2 border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-800 rounded overflow-x-auto"></div>
         </form>
     )
 }
