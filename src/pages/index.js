@@ -10,13 +10,13 @@ import Content from "./index-content.mdx"
 const links = [
   {
     text: "Code highlighter",
-    url: "/code-highlight",
+    url: "code-highlight",
     description:
       "Make high-quality syntax-highlighted code snippets for slides.",
   },
   {
     text: "Projects",
-    url: "/projects",
+    url: "projects",
     description:
       "Find out more about current research and software projects.",
   },
@@ -28,7 +28,7 @@ const links = [
   // },
   {
     text: "Teaching",
-    url: "/teaching",
+    url: "teaching",
     description:
       "Get links to slides, handouts, and other course materials.",
   },
@@ -49,7 +49,7 @@ const moreLinks = [
   }
 ]
 
-const utmParameters = `?utm_source=neboat-personal-site` // `?utm_source=starter&utm_medium=start-page&utm_campaign=default-starter`
+const utmParameters = `` // `?utm_source=neboat-personal-site`
 
 const IndexPage = () => {
   return (

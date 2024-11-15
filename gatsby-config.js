@@ -12,7 +12,7 @@ module.exports = {
     title: `Tao B. Schardl`,
     description: `Tao B. Schardl's personal website`,
     author: `@neboat`,
-    siteUrl: `https://web.mit.edu/neboat/www`,
+    siteUrl: `https://neboat.mit.edu/`,
   },
   pathPrefix: `/neboat/www`,
   plugins: [

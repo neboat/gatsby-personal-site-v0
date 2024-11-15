@@ -3,7 +3,7 @@ import { Link as GatsbyLink } from "gatsby"
 
 // import * as styles from "./index.module.css"
 
-const utmParameters = `?utm_source=neboat-personal-site`
+const utmParameters = `` // `?utm_source=neboat-personal-site`
 
 // Since DOM elements <a> cannot receive activeClassName
 // and partiallyActive, destructure the prop here and
