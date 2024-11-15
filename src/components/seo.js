@@ -7,6 +7,7 @@
 
 import * as React from "react"
 import { useStaticQuery, graphql } from "gatsby"
+import { Location } from '@reach/router'
 
 function Seo({ description, title, children }) {
   const { site } = useStaticQuery(
@@ -17,6 +18,7 @@ function Seo({ description, title, children }) {
             title
             description
             author
+            siteUrl
           }
         }
       }
@@ -29,6 +31,11 @@ function Seo({ description, title, children }) {
   return (
     <>
       <title>{defaultTitle ? `${title} | ${defaultTitle}` : title}</title>
+      <Location>
+        {({ location }) => (
+          <link rel="canonical" href={site.siteMetadata.siteUrl + location.pathname} />
+        )}
+      </Location>
       <meta name="description" content={metaDescription} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={metaDescription} />
