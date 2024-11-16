@@ -144,8 +144,8 @@ const CodeInputOutput = () => {
 const CodeHighlightPage = () => {
     return (
         <Layout pageTitle="Code Highlighter">
-            <div className="w-full lg:w-screen mb-4">
-                <article className="prose prose-zinc dark:prose-invert prose-code:before:hidden prose-code:after:hidden prose-inline-code:bg-amber-50 dark:prose-inline-code:bg-amber-950 max-w-none lg:mx-8">
+            <div className="w-full mb-4">
+                <article className="prose prose-zinc dark:prose-invert prose-code:before:hidden prose-code:after:hidden prose-inline-code:bg-amber-50 dark:prose-inline-code:bg-amber-950 max-w-full">
                     <h1>Code Highlighter</h1>
                     <CodeInputOutput />
                     <Description />
