@@ -24,6 +24,6 @@ query ($id: String) {
   }
 }`
 
-export const Head = ({ data }) => <Seo title={data.mdx.frontmatter.title} />
+export const Head = ({ location, data }) => <Seo title={data.mdx.frontmatter.title} location={location} />
 
 export default SimplePage

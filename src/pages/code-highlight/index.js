@@ -90,7 +90,7 @@ const CodeInputOutput = () => {
         // Replace newlines with <br> in HTML
         pasteRich(str.replace(/(?:\r\n|\r|\n)/g, '<br>'), str)
     }
-    
+
     const handleSubmit = (e) => {
         e.preventDefault()
     }
@@ -155,6 +155,6 @@ const CodeHighlightPage = () => {
     )
 }
 
-export const Head = () => <Seo title="Code Highlighter" />
+export const Head = ({ location }) => <Seo title="Code Highlighter" location={location} />
 
 export default CodeHighlightPage

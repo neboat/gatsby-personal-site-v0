@@ -40,6 +40,6 @@ const PapersPage = () => {
  *
  * See: https://www.gatsbyjs.com/docs/reference/built-in-components/gatsby-head/
  */
-export const Head = () => <Seo title="Papers" />
+export const Head = ({ location }) => <Seo title="Papers" location={location} />
 
 export default PapersPage
